@@ -24,7 +24,7 @@ class FitByTime:
                 self.fields[v].append((vs['timestamp'], vs[v], ))
     
     # XXX: this gets n^2 in a hurry
-    def lerp_value(self, time, field):
+    def lerp_value(self, time, field, flatten_zeroes = None):
         if field not in self.fields:
             return None
         # if there is a field, its length >= 1
@@ -47,13 +47,19 @@ class FitByTime:
         if posttm[0] < time:
             return None
         
+        if flatten_zeroes is not None:
+            if (time - pretm[0]) > flatten_zeroes:
+                pretm = (pretm[0], 0.0)
+            if (posttm[0] - time) > flatten_zeroes:
+                posttm = (posttm[0], 0.0)
+        
         # ok, do the lerp
         totdelt = (posttm[0] - pretm[0]).total_seconds()
         sampdelt = (time - pretm[0]).total_seconds()
         alpha = sampdelt / totdelt
         lerp = pretm[1] * (1.0 - alpha) + posttm[1] * alpha
         
-        print(f"lerping {field} between {pretm[0]} -> {pretm[1]} and {posttm[0]} -> {posttm[1]} with alpha {alpha} = {time} -> {lerp}")
+        # print(f"lerping {field} between {pretm[0]} -> {pretm[1]} and {posttm[0]} -> {posttm[1]} with alpha {alpha} = {time} -> {lerp}")
                 
         return lerp
         
