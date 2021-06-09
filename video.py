@@ -20,10 +20,14 @@ from gst_hacks import map_gst_buffer
 Gst.init(sys.argv)
 
 FILE='/home/joshua/gopro/20210605-copperopolis/GX010026.MP4'
+SEEKTIME=140
+
+FILE='/home/joshua/gopro/20210605-copperopolis/GX010049.MP4'
+SEEKTIME=0
+
 FRAMERATE=30000/1001
 FITFILE='/home/joshua/gopro/20210605-copperopolis/Copperopolis_Road_Race_off_the_back_7_19_but_at_least_I_didn_t_DNF_.fit'
 TIMEFUDGE=36.58
-SEEKTIME=140
 FLIP=True
 
 # Load the timecode.  XXX: is there a better way to do this?
@@ -174,6 +178,8 @@ class GaugeHorizontal:
         
         self.padding = h / 8
 
+        if dummy_caption == None:
+            dummy_caption = caption
         self.caption_text = Text(self.x + self.w - self.padding / 2,
                                  self.y + self.h - self.padding,
                                  size = self.h * 0.5,
@@ -328,6 +334,8 @@ cadence_gauge    = GaugeHorizontal(30, 1080 - 30 - 65 * 1, label = '{val:.0f}', 
 heart_rate_gauge = GaugeHorizontal(30, 1080 - 30 - 65 * 2, label = '{val:.0f}', caption = 'bpm', data_range = [(120, (0, 0.6, 0)), (150, (0.2, 0.6, 0.0)), (180, (0.8, 0.0, 0.0))])
 speed_gauge      = GaugeHorizontal(30, 1080 - 30 - 65 * 3, label = '{val:.1f}', caption = 'mph', data_range = [(8, (0.6, 0, 0)), (15, (0.0, 0.6, 0.0)), (30, (1.0, 0.0, 0.0))])
 temp_gauge       = GaugeVertical  (1920 - 120, 30, data_range = [(60, (0.6, 0.6, 0.0)), (80, (0.6, 0.3, 0)), (100, (0.8, 0.0, 0.0))])
+dist_total_mi    = f.fields['distance'][-1][1] * 0.62137119
+dist_gauge       = GaugeHorizontal(30, 30, w = 1920 - 120 - 30 - 30, label = "{val:.1f}", dummy_label = "99.9", caption = f" / {dist_total_mi:.1f} miles", dummy_caption = None, data_range = [(0, (0.8, 0.7, 0.7)), (dist_total_mi, (0.7, 0.8, 0.7))])
 
 def paint(ctx, w, h, tm):
     cadence = f.lerp_value(tm, 'cadence', flatten_zeroes = datetime.timedelta(seconds = 2.0))
@@ -343,6 +351,10 @@ def paint(ctx, w, h, tm):
     temp_c = f.lerp_value(tm, 'temperature')
     temp_f = (temp_c * 9 / 5) + 32 if temp_c is not None else None
     temp_gauge.render(ctx, temp_f)
+    
+    dist_km = f.lerp_value(tm, 'distance')
+    dist_mi = dist_km * 0.62137119 if dist_km is not None else None
+    dist_gauge.render(ctx, dist_mi)
 
 # https://github.com/jackersson/gst-overlay/blob/master/gst_overlay/gst_overlay_cairo.py
 class GstOverlayGPS(GstBase.BaseTransform):
