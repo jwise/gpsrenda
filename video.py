@@ -23,6 +23,7 @@ FILE='/home/joshua/gopro/20210605-copperopolis/GX010026.MP4'
 FRAMERATE=30000/1001
 FITFILE='/home/joshua/gopro/20210605-copperopolis/Copperopolis_Road_Race_off_the_back_7_19_but_at_least_I_didn_t_DNF_.fit'
 TIMEFUDGE=36.58
+SEEKTIME=140
 FLIP=True
 
 # Load the timecode.  XXX: is there a better way to do this?
@@ -53,6 +54,7 @@ class Text:
     VALIGN_BOTTOM_DESCENDERS = "BOTTOM_DESCENDERS"
     VALIGN_BOTTOM = "BOTTOM"
     HALIGN_LEFT = "LEFT"
+    HALIGN_CENTER = "CENTER"
     HALIGN_RIGHT = "RIGHT"
     
     DEFAULT_FONT = "Ubuntu"
@@ -86,6 +88,8 @@ class Text:
         
         if self.halign == Text.HALIGN_LEFT:
             x = x - exts.x_bearing
+        elif self.halign == Text.HALIGN_CENTER:
+            x = x - exts.x_bearing - (exts.width + self.dropshadow) / 2
         elif self.halign == Text.HALIGN_RIGHT:
             x = x - exts.x_advance - self.dropshadow
         else:
@@ -169,7 +173,6 @@ class GaugeHorizontal:
         self.caption = caption
         
         self.padding = h / 8
-        self.textw = h * 3.2
 
         self.caption_text = Text(self.x + self.w - self.padding / 2,
                                  self.y + self.h - self.padding,
@@ -193,7 +196,7 @@ class GaugeHorizontal:
         
         self.data_range = data_range
         
-        self.gradient = HSVGradient(self.x, 0, self.x + self.gaugew, 0, data_range)
+        self.gradient = HSVGradient(self.x + self.padding, 0, self.x + self.padding + self.gaugew, 0, data_range)
         
         self.bgpattern = cairo.LinearGradient(0, self.y, 0, self.y + self.h)
         self.bgpattern.add_color_stop_rgba(0.0, 0.2, 0.2, 0.2, 0.9)
@@ -246,9 +249,85 @@ class GaugeHorizontal:
         ctx.pop_group_to_source()
         ctx.paint_with_alpha(0.9)
 
+class GaugeVertical:
+    def __init__(self, x, y, w = 80, h = 400, label = '{val:.0f}°F', dummy_label = '100°F', data_range = [(70, (1.0, 0, 0)), (100, (1.0, 0, 0))]):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.label = label
+        
+        self.padding = w / 8
+
+        self.label_text = Text(self.x + self.w / 2,
+                               self.y + self.h - self.padding,
+                               face = Text.DEFAULT_FONT,
+                               size = self.w * 0.4,
+                               dropshadow = self.w * 0.05,
+                               halign = Text.HALIGN_CENTER, valign = Text.VALIGN_BASELINE)
+        
+        self.gaugeh = self.h - self.label_text.measure(dummy_label).height - self.padding * 3
+        
+        self.min = data_range[0][0]
+        self.max = data_range[-1][0]
+        
+        self.data_range = data_range
+        
+        self.gradient = HSVGradient(0, self.y + self.padding + self.gaugeh, 0, self.y + self.padding, data_range)
+        
+        self.bgpattern = cairo.LinearGradient(0, self.y, 0, self.y + self.h)
+        self.bgpattern.add_color_stop_rgba(0.0, 0.2, 0.2, 0.2, 0.9)
+        self.bgpattern.add_color_stop_rgba(1.0, 0.4, 0.4, 0.4, 0.9)
+    
+    def render(self, ctx, val):
+        if val is None:
+            ctx.push_group()
+            ctx.rectangle(self.x, self.y, self.w, self.h)
+            ctx.set_source(self.bgpattern)
+            ctx.fill()
+            ctx.pop_group_to_source()
+            ctx.paint_with_alpha(0.9)
+            return
+        
+        ctx.push_group()
+        
+        # paint a background
+        ctx.rectangle(self.x, self.y, self.w, self.h)
+        ctx.set_source(self.bgpattern)
+        ctx.fill()
+        
+        # paint the gauge bar itself
+        ctx.rectangle(self.x + self.padding, self.y + self.padding + self.gaugeh, self.w - self.padding * 2, -lerp(self.min, 0, self.max, self.gaugeh, val))
+        ctx.set_source(self.gradient.pattern)
+        ctx.fill()
+
+        cur_rgb = self.gradient.lookup(val)
+        cur_hsv = colorsys.rgb_to_hsv(*cur_rgb)
+        
+        # paint a semitransparent overlay on the gauge bar to colorize it
+        # for where we are in the scale
+        ctx.rectangle(self.x + self.padding, self.y + self.padding + self.gaugeh, self.w - self.padding * 2, -lerp(self.min, 0, self.max, self.gaugeh, val))
+        ctx.set_source_rgba(cur_rgb[0], cur_rgb[1], cur_rgb[2], 0.4)
+        ctx.fill()
+
+        # paint the surround for the gauge cluster
+        ctx.rectangle(self.x + self.padding, self.y + self.padding, self.w - self.padding * 2, self.gaugeh)
+        ctx.set_line_width(4)
+        ctx.set_source_rgb(0, 0, 0)
+        ctx.stroke()
+        
+        # render the big numbers
+        text = self.label.format(val = val)
+        self.label_text.color = colorsys.hsv_to_rgb(cur_hsv[0], 0.1, 1.0)
+        self.label_text.render(ctx, text)
+
+        ctx.pop_group_to_source()
+        ctx.paint_with_alpha(0.9)
+
 cadence_gauge    = GaugeHorizontal(30, 1080 - 30 - 65 * 1, label = '{val:.0f}', caption = 'rpm', data_range = [(75, (1.0, 0, 0)), (90, (0.0, 0.6, 0.0)), (100, (0.0, 0.6, 0.0)), (120, (1.0, 0.0, 0.0))])
 heart_rate_gauge = GaugeHorizontal(30, 1080 - 30 - 65 * 2, label = '{val:.0f}', caption = 'bpm', data_range = [(120, (0, 0.6, 0)), (150, (0.2, 0.6, 0.0)), (180, (0.8, 0.0, 0.0))])
 speed_gauge      = GaugeHorizontal(30, 1080 - 30 - 65 * 3, label = '{val:.1f}', caption = 'mph', data_range = [(8, (0.6, 0, 0)), (15, (0.0, 0.6, 0.0)), (30, (1.0, 0.0, 0.0))])
+temp_gauge       = GaugeVertical  (1920 - 120, 30, data_range = [(60, (0.6, 0.6, 0.0)), (80, (0.6, 0.3, 0)), (100, (0.8, 0.0, 0.0))])
 
 def paint(ctx, w, h, tm):
     cadence = f.lerp_value(tm, 'cadence', flatten_zeroes = datetime.timedelta(seconds = 2.0))
@@ -260,6 +339,10 @@ def paint(ctx, w, h, tm):
     speed_kph = f.lerp_value(tm, 'speed')
     speed_mph = speed_kph * 0.62137119 if speed_kph is not None else None
     speed_gauge.render(ctx, speed_mph)
+    
+    temp_c = f.lerp_value(tm, 'temperature')
+    temp_f = (temp_c * 9 / 5) + 32 if temp_c is not None else None
+    temp_gauge.render(ctx, temp_f)
 
 # https://github.com/jackersson/gst-overlay/blob/master/gst_overlay/gst_overlay_cairo.py
 class GstOverlayGPS(GstBase.BaseTransform):
@@ -328,7 +411,7 @@ def on_message(bus, message, pipeline, loop):
             print(f"seek_enabled {seek_enabled}")
             
             if not did_seek:
-                pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, 135 * Gst.SECOND) 
+                pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, SEEKTIME * Gst.SECOND) 
                 did_seek = True
 
     if mtype == Gst.MessageType.EOS:
