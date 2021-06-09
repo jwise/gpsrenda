@@ -47,8 +47,74 @@ def lerp(x0, v0, x1, v1, x):
     alpha = (x - x0) / (x1 - x0)
     return v0 * (1.0 - alpha) + v1 * alpha
 
+class Text:
+    VALIGN_TOP = "TOP"
+    VALIGN_BASELINE = "BASELINE"
+    VALIGN_BOTTOM_DESCENDERS = "BOTTOM_DESCENDERS"
+    VALIGN_BOTTOM = "BOTTOM"
+    HALIGN_LEFT = "LEFT"
+    HALIGN_RIGHT = "RIGHT"
+    
+    DEFAULT_FONT = "Ubuntu"
+    DEFAULT_MONO_FONT = "Ubuntu Mono"
+    
+    def __init__(self, x, y, color = (1.0, 1.0, 1.0), face = DEFAULT_FONT, slant = cairo.FontSlant.NORMAL, weight = cairo.FontWeight.BOLD, halign = HALIGN_LEFT, valign = VALIGN_TOP, size = 12, dropshadow = 0, dropshadow_color = (0.0, 0.0, 0.0)):
+        self.font = cairo.ToyFontFace(face, slant, weight)
+        self.size = size
+        self.x = x
+        self.y = y
+        self.color = color
+        self.halign = halign
+        self.valign = valign
+        self.dropshadow = dropshadow
+        self.dropshadow_color = dropshadow_color
+        
+        self.scaledfont = cairo.ScaledFont(self.font, cairo.Matrix(xx = size, yy = size), cairo.Matrix(), cairo.FontOptions())
+        
+        descender = self.measure('pqfj')
+        self.descender_y = descender.height + descender.y_bearing
+    
+    def measure(self, text):
+        # mostly useful: x_bearing, y_bearing, width, height
+        return self.scaledfont.text_extents(text)
+        
+    def render(self, ctx, text):
+        exts = self.measure(text)
+        
+        x = self.x
+        y = self.y
+        
+        if self.halign == Text.HALIGN_LEFT:
+            x = x - exts.x_bearing
+        elif self.halign == Text.HALIGN_RIGHT:
+            x = x - exts.x_advance - self.dropshadow
+        else:
+            raise ValueError(f"invalid halign {self.halign}")
+        
+        if self.valign == Text.VALIGN_TOP:
+            y = y - exts.y_bearing
+        elif self.valign == Text.VALIGN_BOTTOM:
+            y = y - (exts.height + exts.y_bearing) - self.dropshadow
+        elif self.valign == Text.VALIGN_BOTTOM_DESCENDERS:
+            y = y - self.descender_y - self.dropshadow
+        elif self.valign == Text.VALIGN_BASELINE:
+            pass
+        else:
+            raise ValueError(f"invalid valign {self.valign}")
+        
+        ctx.set_scaled_font(self.scaledfont)
+        
+        if self.dropshadow != 0:
+            ctx.set_source_rgb(*self.dropshadow_color)
+            ctx.move_to(x + self.dropshadow, y + self.dropshadow)
+            ctx.show_text(text)
+        
+        ctx.set_source_rgb(*self.color)
+        ctx.move_to(x, y)
+        ctx.show_text(text)
+
 class GaugeHorizontal:
-    def __init__(self, x, y, w = 600, h = 60, label = '{val:.0f}', caption = '', data_range = [(0, (1.0, 0, 0)), (100, (1.0, 0, 0))]):
+    def __init__(self, x, y, w = 600, h = 60, label = '{val:.0f}', dummy_label = '99.9', caption = '', dummy_caption = 'mph', data_range = [(0, (1.0, 0, 0)), (100, (1.0, 0, 0))]):
         self.x = x
         self.y = y
         self.w = w
@@ -58,7 +124,23 @@ class GaugeHorizontal:
         
         self.padding = h / 8
         self.textw = h * 3.2
-        self.gaugew = self.w - self.textw - self.padding
+
+        self.caption_text = Text(self.x + self.w - self.padding / 2,
+                                 self.y + self.h - self.padding,
+                                 size = self.h * 0.5,
+                                 dropshadow = self.h * 0.1,
+                                 halign = Text.HALIGN_LEFT, valign = Text.VALIGN_BOTTOM_DESCENDERS)
+        self.caption_text.x -= self.caption_text.measure(dummy_caption).width + self.caption_text.dropshadow
+        
+        self.label_text = Text(self.caption_text.x - self.padding / 2,
+                               self.caption_text.y - self.caption_text.descender_y - self.caption_text.dropshadow,
+                               face = Text.DEFAULT_MONO_FONT,
+                               size = self.h * 0.9,
+                               #slant = cairo.FontSlant.ITALIC,
+                               dropshadow = self.h * 0.1,
+                               halign = Text.HALIGN_RIGHT, valign = Text.VALIGN_BASELINE)
+        
+        self.gaugew = self.label_text.x - self.label_text.measure(dummy_label).x_advance - self.padding * 3 - self.x
         
         self.min = data_range[0][0]
         self.max = data_range[-1][0]
@@ -100,9 +182,6 @@ class GaugeHorizontal:
             ctx.pop_group_to_source()
             ctx.paint_with_alpha(0.9)
             return
-        
-        ctx.select_font_face("Ubuntu", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-        ctx.set_font_size(self.h * 0.9)
         
         ctx.push_group()
         
@@ -146,25 +225,10 @@ class GaugeHorizontal:
         
         # render the big numbers
         text = self.label.format(val = val)
-        
-        ctx.set_source_rgb(0, 0, 0)
-        ctx.move_to(self.x + self.gaugew + self.padding * 2 + self.h * 0.1, self.y + self.h - self.padding)
-        ctx.show_text(text)
+        self.label_text.color = colorsys.hsv_to_rgb(cur_hsv[0], 0.1, 1.0)
+        self.label_text.render(ctx, text)
 
-        ctx.set_source_rgb(*colorsys.hsv_to_rgb(cur_hsv[0], 0.1, 1.0))
-        ctx.move_to(self.x + self.gaugew + self.padding * 2, self.y + self.h - self.h * 0.1 - self.padding)
-        ctx.show_text(text)
-
-        # render the caption
-        ctx.set_font_size(self.h * 0.5)
-
-        ctx.set_source_rgb(0, 0, 0)
-        ctx.move_to(self.x + self.w - self.h * 1.2 + self.h * 0.1, self.y + self.h - self.padding)
-        ctx.show_text(self.caption)
-
-        ctx.set_source_rgb(1, 1, 1)
-        ctx.move_to(self.x + self.w - self.h * 1.2,                self.y + self.h - self.h * 0.1 - self.padding)
-        ctx.show_text(self.caption)
+        self.caption_text.render(ctx, self.caption)
         
         ctx.pop_group_to_source()
         ctx.paint_with_alpha(0.9)
