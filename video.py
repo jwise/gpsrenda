@@ -19,7 +19,7 @@ from gst_hacks import map_gst_buffer
 
 Gst.init(sys.argv)
 
-FILE='/home/joshua/gopro/20210605-copperopolis/GX010035.MP4'
+FILE='/home/joshua/gopro/20210605-copperopolis/GX010026.MP4'
 FRAMERATE=30000/1001
 FITFILE='/home/joshua/gopro/20210605-copperopolis/Copperopolis_Road_Race_off_the_back_7_19_but_at_least_I_didn_t_DNF_.fit'
 TIMEFUDGE=36.58
@@ -298,9 +298,26 @@ pipeline = Gst.parse_launch(
 
 loop = GLib.MainLoop()
 
-def on_message(bus, message, loop):
+did_seek = False
+
+def on_message(bus, message, pipeline, loop):
+    global did_seek
+    
     mtype = message.type
-    print(mtype)
+    if mtype == Gst.MessageType.STATE_CHANGED:
+        old_state, new_state, pending_state = message.parse_state_changed()
+        print(f"pipeline state: {Gst.Element.state_get_name(old_state)} -> {Gst.Element.state_get_name(new_state)}")
+        
+        if new_state == Gst.State.PLAYING:
+            q = Gst.Query.new_seeking(Gst.Format.TIME)
+            pipeline.query(q)
+            fmt, seek_enabled, start, end = q.parse_seeking()
+            print(f"seek_enabled {seek_enabled}")
+            
+            if not did_seek:
+                pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, 135 * Gst.SECOND) 
+                did_seek = True
+
     if mtype == Gst.MessageType.EOS:
         print("EOS")
         loop.quit()
@@ -308,13 +325,16 @@ def on_message(bus, message, loop):
         print("Error!")
     elif mtype == Gst.MessageType.WARNING:
         print("Warning!")
+    else:
+        print(mtype)
     return True
 
 bus = pipeline.get_bus()
-bus.connect("message", on_message, None)
+bus.connect("message", on_message, pipeline, loop)
+bus.add_signal_watch()
 
 pipeline.set_state(Gst.State.PLAYING)
-pipeline.seek_simple(Gst.Format.TIME,  Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, 30 * Gst.SECOND) 
+pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, 30 * Gst.SECOND) 
 
 try:
     loop.run()
