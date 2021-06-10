@@ -669,9 +669,9 @@ if not Gst.Plugin.register_static(Gst.VERSION_MAJOR, Gst.VERSION_MINOR, 'gpsover
 pipeline = Gst.parse_launch(
     f"filesrc location={FILE} ! decodebin name=decoder "
     f"decoder. ! queue ! audioconvert ! audioresample ! alsasink "
-    f"decoder. ! videoconvert ! " +
+    f"decoder. ! queue ! videoconvert ! " +
     ("videoflip method=rotate-180 ! " if FLIP else "") +
-    f"gpsoverlay ! videoconvert ! "
+    f"gpsoverlay ! videoconvert ! queue ! "
     f"autovideosink"
     )
 
