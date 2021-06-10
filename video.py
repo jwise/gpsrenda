@@ -13,6 +13,7 @@ import struct
 import os
 import datetime
 import colorsys
+import math
 
 import fit
 from gst_hacks import map_gst_buffer
@@ -22,7 +23,7 @@ Gst.init(sys.argv)
 FILE='/home/joshua/gopro/20210605-copperopolis/GX010026.MP4'
 SEEKTIME=140
 
-FILE='/home/joshua/gopro/20210605-copperopolis/GX010049.MP4'
+FILE='/home/joshua/gopro/20210605-copperopolis/GX010037.MP4'
 SEEKTIME=0
 
 FRAMERATE=30000/1001
@@ -330,12 +331,127 @@ class GaugeVertical:
         ctx.pop_group_to_source()
         ctx.paint_with_alpha(0.9)
 
+class GaugeMap:
+    def __init__(self, x, y, w = 400, h = 400, line_width = 5, dot_size = 15):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.line_width = line_width
+        self.dot_size = dot_size
+        
+        self.padding = w / 15
+
+        self.bgpattern = cairo.LinearGradient(0, self.y, 0, self.y + self.h)
+        self.bgpattern.add_color_stop_rgba(0.0, 0.2, 0.2, 0.2, 0.9)
+        self.bgpattern.add_color_stop_rgba(1.0, 0.4, 0.4, 0.4, 0.9)
+        
+        self.mapsurface = cairo.ImageSurface(cairo.Format.ARGB32, w, h)
+        
+        self.minx, self.maxx = self.x + self.padding, self.x + self.w - self.padding
+        self.miny, self.maxy = self.y + self.padding, self.y + self.h - self.padding
+    
+    def prerender(self, latdata, londata):
+        print("...computing map bounds...")
+        
+        # Determine the bounds.
+        self.minlat, self.maxlat = math.inf, -math.inf
+        self.minlon, self.maxlon = math.inf, -math.inf
+        
+        for (tm, lat) in latdata:
+            if lat < self.minlat:
+                self.minlat = lat
+            if lat > self.maxlat:
+                self.maxlat = lat
+        ctrlat = (self.minlat + self.maxlat) / 2
+        
+        for (tm, lon) in londata:
+            if lon < self.minlon:
+                self.minlon = lon
+            if lon > self.maxlon:
+                self.maxlon = lon
+        ctrlon = (self.minlon + self.maxlon) / 2
+        
+        # Meet the aspect ratio.
+        if ((self.maxlon - self.minlon) / (self.maxlat - self.minlat)) < (self.w / self.h):
+            lonh = (self.maxlat - self.minlat) * self.w / self.h
+            self.minlon = ctrlon - lonh / 2
+            self.maxlon = ctrlon + lonh / 2
+        else:
+            latw = (self.maxlon - self.minlon) * self.h / self.w
+            self.minlat = ctrlat - latw / 2
+            self.maxlat = ctrlat + latw / 2
+
+        print(f"...rendering map on lat [{self.minlat}, {self.maxlat}], lon [{self.minlon}, {self.maxlon}]...")
+        ctx = cairo.Context(self.mapsurface)
+        
+        npts = 0
+        for ((tm1, lat), (tm2, lon)) in zip(latdata, londata):
+            if tm1 != tm2:
+                raise ValueError("latdata and londata not aligned in map")
+            x = lerp(self.minlon, self.padding, self.maxlon, self.w - self.padding, lon)
+            y = lerp(self.minlat, self.h - self.padding, self.maxlat, self.padding, lat)
+            ctx.line_to(x, y)
+            
+            npts += 1
+        
+        ctx.set_line_width(self.line_width)
+        ctx.set_source_rgb(0.8, 0.8, 0.8)
+        ctx.stroke()
+
+        print(f"...rendered {npts} points...")
+    
+    def render(self, ctx, lat, lon):
+        if lat is None or lon is None:
+            ctx.push_group()
+            ctx.rectangle(self.x, self.y, self.w, self.h)
+            ctx.set_source(self.bgpattern)
+            ctx.fill()
+            ctx.pop_group_to_source()
+            ctx.paint_with_alpha(0.9)
+            return
+        
+        ctx.push_group()
+        
+        # paint a background
+        ctx.rectangle(self.x, self.y, self.w, self.h)
+        ctx.set_source(self.bgpattern)
+        ctx.fill()
+        
+        # paint the map
+        ctx.rectangle(self.x, self.y, self.w, self.h)
+        ctx.set_source_surface(self.mapsurface, self.x, self.y)
+        ctx.fill()
+        
+        # paint a dot
+        x = lerp(self.minlon, self.minx, self.maxlon, self.maxx, lon)
+        y = lerp(self.minlat, self.maxy, self.maxlat, self.miny, lat)
+        
+        ctx.push_group()
+        
+        ctx.set_source_rgba(1.0, 1.0, 0.3, 0.5)
+        ctx.arc(x, y, self.dot_size, 0, math.pi * 2)
+        ctx.fill()
+
+        ctx.set_source_rgb(1.0, 0.3, 0.3)
+        ctx.arc(x, y, self.dot_size / 2, 0, math.pi * 2)
+        ctx.fill()
+
+        ctx.pop_group_to_source()
+        ctx.paint_with_alpha(0.9)
+        
+        ctx.pop_group_to_source()
+        ctx.paint_with_alpha(0.9)
+
+
 cadence_gauge    = GaugeHorizontal(30, 1080 - 30 - 65 * 1, label = '{val:.0f}', caption = 'rpm', data_range = [(75, (1.0, 0, 0)), (90, (0.0, 0.6, 0.0)), (100, (0.0, 0.6, 0.0)), (120, (1.0, 0.0, 0.0))])
 heart_rate_gauge = GaugeHorizontal(30, 1080 - 30 - 65 * 2, label = '{val:.0f}', caption = 'bpm', data_range = [(120, (0, 0.6, 0)), (150, (0.2, 0.6, 0.0)), (180, (0.8, 0.0, 0.0))])
 speed_gauge      = GaugeHorizontal(30, 1080 - 30 - 65 * 3, label = '{val:.1f}', caption = 'mph', data_range = [(8, (0.6, 0, 0)), (15, (0.0, 0.6, 0.0)), (30, (1.0, 0.0, 0.0))])
 temp_gauge       = GaugeVertical  (1920 - 120, 30, data_range = [(60, (0.6, 0.6, 0.0)), (80, (0.6, 0.3, 0)), (100, (0.8, 0.0, 0.0))])
 dist_total_mi    = f.fields['distance'][-1][1] * 0.62137119
 dist_gauge       = GaugeHorizontal(30, 30, w = 1920 - 120 - 30 - 30, label = "{val:.1f}", dummy_label = "99.9", caption = f" / {dist_total_mi:.1f} miles", dummy_caption = None, data_range = [(0, (0.8, 0.7, 0.7)), (dist_total_mi, (0.7, 0.8, 0.7))])
+map              = GaugeMap(1920 - 30 - 400, 1080 - 30 - 65 * 3, h = 65 * 3)
+map.prerender(f.fields['position_lat'], f.fields['position_long'])
 
 def paint(ctx, w, h, tm):
     cadence = f.lerp_value(tm, 'cadence', flatten_zeroes = datetime.timedelta(seconds = 2.0))
@@ -355,6 +471,10 @@ def paint(ctx, w, h, tm):
     dist_km = f.lerp_value(tm, 'distance')
     dist_mi = dist_km * 0.62137119 if dist_km is not None else None
     dist_gauge.render(ctx, dist_mi)
+    
+    latitude  = f.lerp_value(tm, 'position_lat')
+    longitude = f.lerp_value(tm, 'position_long')
+    map.render(ctx, latitude, longitude)
 
 # https://github.com/jackersson/gst-overlay/blob/master/gst_overlay/gst_overlay_cairo.py
 class GstOverlayGPS(GstBase.BaseTransform):
