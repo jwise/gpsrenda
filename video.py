@@ -20,10 +20,16 @@ from gst_hacks import map_gst_buffer
 
 Gst.init(sys.argv)
 
-FILE='/home/joshua/gopro/20210605-copperopolis/GX010026.MP4'
-SEEKTIME=140
+# start
+#FILE='/home/joshua/gopro/20210605-copperopolis/GX010026.MP4'
+#SEEKTIME=140
 
-FILE='/home/joshua/gopro/20210605-copperopolis/GX010037.MP4'
+# robin
+#FILE='/home/joshua/gopro/20210605-copperopolis/GX010037.MP4'
+#SEEKTIME=0
+
+# descent
+FILE='/home/joshua/gopro/20210605-copperopolis/GX010031.MP4'
 SEEKTIME=0
 
 FRAMERATE=30000/1001
@@ -346,7 +352,7 @@ class GaugeMap:
         self.bgpattern.add_color_stop_rgba(0.0, 0.2, 0.2, 0.2, 0.9)
         self.bgpattern.add_color_stop_rgba(1.0, 0.4, 0.4, 0.4, 0.9)
         
-        self.mapsurface = cairo.ImageSurface(cairo.Format.ARGB32, w, h)
+        self.mapsurface = cairo.ImageSurface(cairo.Format.A8, w, h)
         
         self.minx, self.maxx = self.x + self.padding, self.x + self.w - self.padding
         self.miny, self.maxy = self.y + self.padding, self.y + self.h - self.padding
@@ -396,7 +402,7 @@ class GaugeMap:
             npts += 1
         
         ctx.set_line_width(self.line_width)
-        ctx.set_source_rgb(0.8, 0.8, 0.8)
+        ctx.set_source_rgb(1.0, 1.0, 1.0)
         ctx.stroke()
 
         print(f"...rendered {npts} points...")
@@ -419,9 +425,8 @@ class GaugeMap:
         ctx.fill()
         
         # paint the map
-        ctx.rectangle(self.x, self.y, self.w, self.h)
-        ctx.set_source_surface(self.mapsurface, self.x, self.y)
-        ctx.fill()
+        ctx.set_source_rgb(0.8, 0.8, 0.8)
+        ctx.mask_surface(self.mapsurface, self.x, self.y)
         
         # paint a dot
         x = lerp(self.minlon, self.minx, self.maxlon, self.maxx, lon)
@@ -443,6 +448,147 @@ class GaugeMap:
         ctx.pop_group_to_source()
         ctx.paint_with_alpha(0.9)
 
+class GaugeElevationMap:
+    def __init__(self, x, y, w = 400, h = 400, line_width = 5, dot_size = 15, dist_scale = 10, with_grade = True, with_elev = True):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.line_width = line_width
+        self.dot_size = dot_size
+        self.dist_scale = dist_scale
+        
+        self.padding = w / 10
+
+        self.bgpattern = cairo.LinearGradient(0, self.y, 0, self.y + self.h)
+        self.bgpattern.add_color_stop_rgba(0.0, 0.2, 0.2, 0.2, 0.9)
+        self.bgpattern.add_color_stop_rgba(1.0, 0.4, 0.4, 0.4, 0.9)
+        
+        self.fgpattern = cairo.LinearGradient(self.x, 0, self.x + self.w, 0)
+        self.fgpattern.add_color_stop_rgba(0.0,                         0.8, 0.8, 0.8, 0.0)
+        self.fgpattern.add_color_stop_rgba(      self.padding / self.w, 0.8, 0.8, 0.8, 1.0)
+        self.fgpattern.add_color_stop_rgba(1.0 - self.padding / self.w, 0.8, 0.8, 0.8, 1.0)
+        self.fgpattern.add_color_stop_rgba(1.0,                         0.8, 0.8, 0.8, 0.0)
+        
+        self.minx, self.maxx = self.x + self.padding, self.x + self.w - self.padding
+        self.miny, self.maxy = self.y + self.padding, self.y + self.h - self.padding
+        
+        if with_grade:
+            self.grade_text = Text(self.x + self.padding / 3, self.y + self.h - self.padding / 3,
+                                   size = self.h * 0.2,
+                                   dropshadow = self.h * 0.03,
+                                   halign = Text.HALIGN_LEFT, valign = Text.VALIGN_BOTTOM)
+
+        if with_elev:
+            self.elev_text = Text(self.x + self.padding / 3, self.y + self.h - self.padding / 3,
+                                  size = self.h * 0.15,
+                                  dropshadow = self.h * 0.03,
+                                  halign = Text.HALIGN_CENTER, valign = Text.VALIGN_TOP,
+                                  color = (0.8, 0.8, 0.8))
+    
+    def prerender(self, distdata, elevdata):
+        print("...computing elevmap bounds...")
+        
+        # Determine the bounds.
+        self.mindist, self.maxdist = distdata[0][1], distdata[-1][1]
+        self.minelev, self.maxelev = math.inf, -math.inf
+        
+        for (tm, elev) in elevdata:
+            if elev < self.minelev:
+                self.minelev = elev
+            if elev > self.maxelev:
+                self.maxelev = elev
+        
+        self.surfx = int((self.maxdist - self.mindist) / self.dist_scale * self.w)
+        self.mapsurface = cairo.ImageSurface(cairo.Format.A8, self.surfx, int(self.y - self.padding * 2))
+        
+        print(f"...rendering elevmap...")
+        ctx = cairo.Context(self.mapsurface)
+        
+        npts = 0
+        distp = 0
+        elevp = 0
+        while distp < len(distdata) and elevp < len(elevdata):
+            # align distance and elevation data, skipping samples for which there is no match
+            tmd, dist = distdata[distp]
+            tme, elev = elevdata[elevp]
+            if tmd < tme:
+                distp += 1
+                continue
+            if tme < tmd:
+                elevp += 1
+                continue
+
+            x = lerp(self.mindist, 0, self.maxdist, self.surfx, dist)
+            y = lerp(self.minelev, self.h - self.padding, self.maxelev, self.padding, elev)
+            ctx.line_to(x, y)
+            
+            distp += 1
+            elevp += 1
+            npts += 1
+        
+        ctx.set_line_width(self.line_width)
+        ctx.set_source_rgb(1.0, 1.0, 1.0)
+        ctx.stroke()
+
+        print(f"...rendered {npts} points...")
+    
+    def render(self, ctx, dist, elev, grade):
+        if dist is None or elev is None or grade is None:
+            ctx.push_group()
+            ctx.rectangle(self.x, self.y, self.w, self.h)
+            ctx.set_source(self.bgpattern)
+            ctx.fill()
+            ctx.pop_group_to_source()
+            ctx.paint_with_alpha(0.9)
+            return
+        
+        ctx.push_group()
+        
+        # paint a background
+        ctx.rectangle(self.x, self.y, self.w, self.h)
+        ctx.set_source(self.bgpattern)
+        ctx.fill()
+        
+        # paint the map
+        # XXX: clamp map position to [0, self.surfx]
+        ctx.save()
+        ctx.rectangle(self.x, self.y, self.w, self.h)
+        ctx.clip()
+        ctx.set_source(self.fgpattern)
+        ctx.mask_surface(self.mapsurface, self.x - dist / self.dist_scale * self.w + self.w / 2, self.y)
+        ctx.restore()
+        
+        # paint a dot
+        x = self.x + self.w / 2
+        y = lerp(self.minelev, self.y + self.h - self.padding, self.maxelev, self.y + self.padding, elev)
+        
+        ctx.push_group()
+        
+        ctx.set_source_rgba(1.0, 1.0, 0.3, 0.5)
+        ctx.arc(x, y, self.dot_size, 0, math.pi * 2)
+        ctx.fill()
+
+        ctx.set_source_rgb(1.0, 0.3, 0.3)
+        ctx.arc(x, y, self.dot_size / 2, 0, math.pi * 2)
+        ctx.fill()
+
+        ctx.pop_group_to_source()
+        ctx.paint_with_alpha(0.9)
+        
+        if self.grade_text:
+            grade_hue = lerp(-5, 0.5, 10, 0.0, grade)
+            self.grade_text.color = colorsys.hsv_to_rgb(grade_hue, 0.4, 0.9)
+            self.grade_text.render(ctx, f"{grade:.1f}%")
+        
+        elev_ft = elev * 3.2808399
+        if self.elev_text:
+            self.elev_text.x = x
+            self.elev_text.y = y + self.dot_size * 1.3
+            self.elev_text.render(ctx, f"{elev_ft:.0f}ft")
+        
+        ctx.pop_group_to_source()
+        ctx.paint_with_alpha(0.9)
 
 cadence_gauge    = GaugeHorizontal(30, 1080 - 30 - 65 * 1, label = '{val:.0f}', caption = 'rpm', data_range = [(75, (1.0, 0, 0)), (90, (0.0, 0.6, 0.0)), (100, (0.0, 0.6, 0.0)), (120, (1.0, 0.0, 0.0))])
 heart_rate_gauge = GaugeHorizontal(30, 1080 - 30 - 65 * 2, label = '{val:.0f}', caption = 'bpm', data_range = [(120, (0, 0.6, 0)), (150, (0.2, 0.6, 0.0)), (180, (0.8, 0.0, 0.0))])
@@ -451,7 +597,9 @@ temp_gauge       = GaugeVertical  (1920 - 120, 30, data_range = [(60, (0.6, 0.6,
 dist_total_mi    = f.fields['distance'][-1][1] * 0.62137119
 dist_gauge       = GaugeHorizontal(30, 30, w = 1920 - 120 - 30 - 30, label = "{val:.1f}", dummy_label = "99.9", caption = f" / {dist_total_mi:.1f} miles", dummy_caption = None, data_range = [(0, (0.8, 0.7, 0.7)), (dist_total_mi, (0.7, 0.8, 0.7))])
 map              = GaugeMap(1920 - 30 - 400, 1080 - 30 - 65 * 3, h = 65 * 3)
+elevmap          = GaugeElevationMap(1920 - 30 - 400 - 30 - 400, 1080 - 30 - 65 * 3, h = 65 * 3)
 map.prerender(f.fields['position_lat'], f.fields['position_long'])
+elevmap.prerender(f.fields['distance'], f.fields['altitude'])
 
 def paint(ctx, w, h, tm):
     cadence = f.lerp_value(tm, 'cadence', flatten_zeroes = datetime.timedelta(seconds = 2.0))
@@ -475,6 +623,10 @@ def paint(ctx, w, h, tm):
     latitude  = f.lerp_value(tm, 'position_lat')
     longitude = f.lerp_value(tm, 'position_long')
     map.render(ctx, latitude, longitude)
+    
+    altitude = f.lerp_value(tm, 'altitude')
+    grade    = f.lerp_value(tm, 'grade')
+    elevmap.render(ctx, dist_km, altitude, grade)
 
 # https://github.com/jackersson/gst-overlay/blob/master/gst_overlay/gst_overlay_cairo.py
 class GstOverlayGPS(GstBase.BaseTransform):
