@@ -23,12 +23,12 @@ Gst.init(sys.argv)
 #SEEKTIME=140
 
 # robin
-#FILE='/home/joshua/gopro/20210605-copperopolis/GX010037.MP4'
-#SEEKTIME=0
+FILE='/home/joshua/gopro/20210605-copperopolis/GX010037.MP4'
+SEEKTIME=0
 
 # descent
-FILE='/home/joshua/gopro/20210605-copperopolis/GX010031.MP4'
-SEEKTIME=0
+#FILE='/home/joshua/gopro/20210605-copperopolis/GX010031.MP4'
+#SEEKTIME=0
 
 FITFILE='/home/joshua/gopro/20210605-copperopolis/Copperopolis_Road_Race_off_the_back_7_19_but_at_least_I_didn_t_DNF_.fit'
 TIMEFUDGE=36.58
@@ -46,32 +46,24 @@ elevmap          = GaugeElevationMap(1920 - 30 - 400 - 30 - 400, 1080 - 30 - 65 
 map.prerender(f.fields['position_lat'], f.fields['position_long'])
 elevmap.prerender(f.fields['distance'], f.fields['altitude'])
 
+cadence = f.interpolator('cadence', flatten_zeroes = datetime.timedelta(seconds = 2.0))
+heart_rate = f.interpolator('heart_rate')
+speed_kph = f.interpolator('speed')
+dist_km = f.interpolator('distance')
+temp_c = f.interpolator('temperature')
+latitude = f.interpolator('position_lat')
+longitude = f.interpolator('position_long')
+altitude = f.interpolator('altitude')
+grade = f.interpolator('grade')
+
 def paint(ctx, w, h, tm):
-    cadence = f.lerp_value(tm, 'cadence', flatten_zeroes = datetime.timedelta(seconds = 2.0))
-    cadence_gauge.render(ctx, cadence)
-    
-    heart_rate = f.lerp_value(tm, 'heart_rate')
-    heart_rate_gauge.render(ctx, heart_rate)
-    
-    speed_kph = f.lerp_value(tm, 'speed')
-    speed_mph = speed_kph * 0.62137119 if speed_kph is not None else None
-    speed_gauge.render(ctx, speed_mph)
-    
-    temp_c = f.lerp_value(tm, 'temperature')
-    temp_f = (temp_c * 9 / 5) + 32 if temp_c is not None else None
-    temp_gauge.render(ctx, temp_f)
-    
-    dist_km = f.lerp_value(tm, 'distance')
-    dist_mi = dist_km * 0.62137119 if dist_km is not None else None
-    dist_gauge.render(ctx, dist_mi)
-    
-    latitude  = f.lerp_value(tm, 'position_lat')
-    longitude = f.lerp_value(tm, 'position_long')
-    map.render(ctx, latitude, longitude)
-    
-    altitude = f.lerp_value(tm, 'altitude')
-    grade    = f.lerp_value(tm, 'grade')
-    elevmap.render(ctx, dist_km, altitude, grade)
+    cadence_gauge.render(ctx, cadence.value(tm))
+    heart_rate_gauge.render(ctx, heart_rate.value(tm))
+    speed_gauge.render(ctx, speed_kph.value(tm, transform = lambda v: v * 0.62137119))
+    temp_gauge.render(ctx, temp_c.value(tm, transform = lambda v: (v * 9 / 5) + 32))
+    dist_gauge.render(ctx, dist_km.value(tm, transform = lambda v: v * 0.62137119))
+    map.render(ctx, latitude.value(tm), longitude.value(tm))
+    elevmap.render(ctx, dist_km.value(tm), altitude.value(tm), grade.value(tm))
 
 # https://github.com/jackersson/gst-overlay/blob/master/gst_overlay/gst_overlay_cairo.py
 class GstOverlayGPS(GstBase.BaseTransform):
