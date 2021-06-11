@@ -100,8 +100,9 @@ class GstOverlayGPS(GstBase.BaseTransform):
                                             Gst.PadDirection.SINK,
                                             Gst.PadPresence.ALWAYS,
                                             Gst.Caps.from_string("video/x-raw,format=BGRA")))
-    def __init__(self):
+    def __init__(self, painter):
         super(GstOverlayGPS, self).__init__()
+        self.painter = painter
     
     def do_transform_ip(self, buffer):
         tst = time.time()
@@ -112,27 +113,79 @@ class GstOverlayGPS(GstBase.BaseTransform):
         with map_gst_buffer(buffer, Gst.MapFlags.READ) as data:
             surf = cairo.ImageSurface.create_for_data(data, cairo.FORMAT_ARGB32, w, h)
             ctx = cairo.Context(surf)
-            paint(ctx, w, h, start_time + datetime.timedelta(seconds = self.segment.position / 1000000000))
+            self.painter(ctx, w, h, start_time + datetime.timedelta(seconds = self.segment.position / 1000000000))
         
         print(f"transform took {(time.time() - tst) * 1000:.1f}ms")
         
         return Gst.FlowReturn.OK
 
 
-def register(plugin):
-    return Gst.Element.register(plugin, 'gpsoverlay', 0, GObject.type_register(GstOverlayGPS))
-if not Gst.Plugin.register_static(Gst.VERSION_MAJOR, Gst.VERSION_MINOR, 'gpsoverlay', 'GPS overlay object', register, '0.0', 'unknown', 'gstreamer', 'gpsrenda', 'the.internet'):
-    raise ImportError("failed to register gpsoverlay with gstreamer")
+pipeline = Gst.Pipeline.new("pipeline")
 
-pipeline = Gst.parse_launch(
-    f"filesrc location={FILE} ! decodebin name=decoder "
-    f"decoder. ! queue ! audioconvert ! audioresample ! alsasink "
-    f"decoder. ! queue ! videoconvert ! " +
-    ("videoflip method=rotate-180 ! " if FLIP else "") +
-    f"gpsoverlay ! videoconvert ! queue ! "
-    f"autovideosink"
-    )
+filesrc = Gst.ElementFactory.make("filesrc", None)
+pipeline.add(filesrc)
+filesrc.set_property("location", FILE)
 
+decodebin = Gst.ElementFactory.make("decodebin", None)
+pipeline.add(decodebin)
+filesrc.link(decodebin)
+def decodebin_pad_callback(decodebin, pad):
+    padcaps = pad.query_caps(None).to_string()
+    
+    if padcaps.startswith("video"):
+        global queuev
+        pad.link(queuev.get_static_pad("sink"))
+    elif padcaps.startswith("audio"):
+        global queuea
+        pad.link(queuea.get_static_pad("sink"))
+    else:
+        print(f"decodebin unknown output pad caps {padcaps}???")
+decodebin.connect("pad-added", decodebin_pad_callback)
+
+queuea = Gst.ElementFactory.make("queue", "queuea")
+pipeline.add(queuea)
+# linked above
+
+audioconvert = Gst.ElementFactory.make("audioconvert", None)
+pipeline.add(audioconvert)
+queuea.link(audioconvert)
+
+audioresample = Gst.ElementFactory.make("audioresample", None)
+pipeline.add(audioresample)
+audioconvert.link(audioresample)
+
+autoaudiosink = Gst.ElementFactory.make("autoaudiosink", None)
+pipeline.add(autoaudiosink)
+audioresample.link(autoaudiosink)
+
+queuev = Gst.ElementFactory.make("queue", "queuev")
+pipeline.add(queuev)
+# linked above
+
+videoconvert1 = Gst.ElementFactory.make("videoconvert", None)
+pipeline.add(videoconvert1)
+queuev.link(videoconvert1)
+
+videoflip = Gst.ElementFactory.make("videoflip", None)
+pipeline.add(videoflip)
+videoflip.set_property("method", "rotate-180")
+videoconvert1.link(videoflip)
+
+gpsoverlay = GstOverlayGPS(paint)
+pipeline.add(gpsoverlay)
+videoflip.link(gpsoverlay)
+
+videoconvert2 = Gst.ElementFactory.make("videoconvert", None)
+pipeline.add(videoconvert2)
+gpsoverlay.link(videoconvert2)
+
+queuev2 = Gst.ElementFactory.make("queue", "queuev2")
+pipeline.add(queuev2)
+videoconvert2.link(queuev2)
+
+autovideosink = Gst.ElementFactory.make("autovideosink", None)
+pipeline.add(autovideosink)
+queuev2.link(autovideosink)
 
 loop = GLib.MainLoop()
 
