@@ -84,6 +84,7 @@ class GstOverlayGPS(GstBase.BaseTransform):
         super(GstOverlayGPS, self).__init__()
         self.painter = painter
         self.video_start_time = start_time
+        self.last_tm = time.time()
     
     def do_transform_ip(self, buffer):
         tst = time.time()
@@ -96,7 +97,8 @@ class GstOverlayGPS(GstBase.BaseTransform):
             ctx = cairo.Context(surf)
             self.painter(ctx, w, h, self.video_start_time + datetime.timedelta(seconds = self.segment.position / 1000000000))
         
-        print(f"transform took {(time.time() - tst) * 1000:.1f}ms")
+        print(f"transform took {(time.time() - tst) * 1000:.1f}ms, {1 / (time.time() - self.last_tm):.1f} fps")
+        self.last_tm = time.time()
         
         return Gst.FlowReturn.OK
 
@@ -261,5 +263,72 @@ class RenderLoop:
             loop.run()
         finally:
             loop.quit()
+    
+    def encode(self, output):
+        """Set up a Gstreamer encode, and run it."""
 
-RenderLoop(VideoSourceGoPro(FILE, timefudge = datetime.timedelta(hours = 7, seconds = -TIMEFUDGE)), painter = paint).preview()
+        pipeline = Gst.Pipeline.new("pipeline")
+        
+        (aout, vout) = self.input.add_to_pipeline(pipeline)
+
+        def mkelt(eltype):
+            elt = Gst.ElementFactory.make(eltype, None)
+            assert elt
+            pipeline.add(elt)
+            return elt
+
+        gpsoverlay = GstOverlayGPS(paint, self.start_time)
+        pipeline.add(gpsoverlay)
+        vout.link(gpsoverlay)
+
+        videoconvert_out = mkelt("videoconvert")
+        gpsoverlay.link(videoconvert_out)
+        
+        x264enc = mkelt("x264enc")
+        x264enc.set_property("pass", 5) # constant quality
+        x264enc.set_property("speed-preset", 2) # superfast
+        x264enc.set_property("quantizer", 18) # ???
+        videoconvert_out.link(x264enc)
+        
+        x264q = mkelt("queue")
+        x264enc.link(x264q)
+        
+        mp4mux = mkelt("mp4mux")
+        x264q.link(mp4mux)
+        aout.link(mp4mux)
+        
+        filesink = mkelt("filesink")
+        filesink.set_property("location", output)
+        mp4mux.link(filesink)
+        
+        pipeline.use_clock(None)
+
+        loop = GLib.MainLoop()
+        def on_message(bus, message):
+            mtype = message.type
+            if mtype == Gst.MessageType.STATE_CHANGED:
+                pass
+            elif mtype == Gst.MessageType.EOS:
+                print("EOS")
+                pipeline.set_state(Gst.State.NULL)
+                loop.quit()
+            elif mtype == Gst.MessageType.ERROR:
+                print("Error!")
+            elif mtype == Gst.MessageType.WARNING:
+                print("Warning!")
+            return True
+
+        bus = pipeline.get_bus()
+        bus.connect("message", on_message)
+        bus.add_signal_watch()
+
+        pipeline.set_state(Gst.State.PLAYING)
+
+        try:
+            loop.run()
+        finally:
+            pipeline.send_event(Gst.Event.new_eos())
+            pipeline.set_state(Gst.State.NULL)
+            loop.quit()
+
+RenderLoop(VideoSourceGoPro(FILE, timefudge = datetime.timedelta(hours = 7, seconds = -TIMEFUDGE)), painter = paint).encode("robin.mp4")
