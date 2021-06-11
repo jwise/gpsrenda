@@ -5,11 +5,12 @@ gi.require_version('Gst', '1.0')
 gi.require_version('GstApp', '1.0')
 gi.require_version('GstBase', '1.0')
 from gi.repository import Gst, GstApp, GstBase, GLib, GObject
-import cairo
 import time
 import struct
 import os
 import datetime
+import tempfile
+import cairo
 
 from gst_hacks import map_gst_buffer
 import fit
@@ -29,22 +30,8 @@ Gst.init(sys.argv)
 FILE='/home/joshua/gopro/20210605-copperopolis/GX010031.MP4'
 SEEKTIME=0
 
-FRAMERATE=30000/1001
 FITFILE='/home/joshua/gopro/20210605-copperopolis/Copperopolis_Road_Race_off_the_back_7_19_but_at_least_I_didn_t_DNF_.fit'
 TIMEFUDGE=36.58
-FLIP=True
-
-# Load the timecode.  XXX: is there a better way to do this?
-TMCD_OUT='tmp_tmcd'
-os.system(f"ffmpeg -i {FILE} -map 0:d:0 -y -f data {TMCD_OUT}")
-with open(TMCD_OUT, "rb") as f:
-    tmcd_frames = struct.unpack(">I", f.read())[0]
-tmcd_secs = tmcd_frames / FRAMERATE
-print(tmcd_secs)
-start_time = datetime.datetime(year = 2021, month = 6, day = 5) + datetime.timedelta(seconds = tmcd_secs) # this is LOCAL TIME
-
-start_time += datetime.timedelta(hours = 7)
-start_time += datetime.timedelta(seconds = -TIMEFUDGE)
 
 f = fit.FitByTime(FITFILE)
 
@@ -100,9 +87,11 @@ class GstOverlayGPS(GstBase.BaseTransform):
                                             Gst.PadDirection.SINK,
                                             Gst.PadPresence.ALWAYS,
                                             Gst.Caps.from_string("video/x-raw,format=BGRA")))
-    def __init__(self, painter):
+    
+    def __init__(self, painter, start_time):
         super(GstOverlayGPS, self).__init__()
         self.painter = painter
+        self.video_start_time = start_time
     
     def do_transform_ip(self, buffer):
         tst = time.time()
@@ -113,121 +102,172 @@ class GstOverlayGPS(GstBase.BaseTransform):
         with map_gst_buffer(buffer, Gst.MapFlags.READ) as data:
             surf = cairo.ImageSurface.create_for_data(data, cairo.FORMAT_ARGB32, w, h)
             ctx = cairo.Context(surf)
-            self.painter(ctx, w, h, start_time + datetime.timedelta(seconds = self.segment.position / 1000000000))
+            self.painter(ctx, w, h, self.video_start_time + datetime.timedelta(seconds = self.segment.position / 1000000000))
         
         print(f"transform took {(time.time() - tst) * 1000:.1f}ms")
         
         return Gst.FlowReturn.OK
 
-
-pipeline = Gst.Pipeline.new("pipeline")
-
-filesrc = Gst.ElementFactory.make("filesrc", None)
-pipeline.add(filesrc)
-filesrc.set_property("location", FILE)
-
-decodebin = Gst.ElementFactory.make("decodebin", None)
-pipeline.add(decodebin)
-filesrc.link(decodebin)
-def decodebin_pad_callback(decodebin, pad):
-    padcaps = pad.query_caps(None).to_string()
+class VideoSourceGoPro:
+    def __init__(self, filename, flip = True, h265 = True, framerate = 30000/1001, timefudge = datetime.timedelta(seconds = 0)):
+        self.filename = filename
+        self.flip = flip
+        self.h265 = h265
+        self.framerate = framerate # needed until we can pull this out of the file with libav
+        self.timefudge = timefudge
     
-    if padcaps.startswith("video"):
-        global queuev
-        pad.link(queuev.get_static_pad("sink"))
-    elif padcaps.startswith("audio"):
-        global queuea
-        pad.link(queuea.get_static_pad("sink"))
-    else:
-        print(f"decodebin unknown output pad caps {padcaps}???")
-decodebin.connect("pad-added", decodebin_pad_callback)
+    def add_to_pipeline(self, pipeline):
+        """Returns a tuple of GstElements that have src pads for *decoded* video and *encoded* audio."""
+        def mkelt(eltype):
+            elt = Gst.ElementFactory.make(eltype, None)
+            assert elt
+            pipeline.add(elt)
+            return elt
 
-queuea = Gst.ElementFactory.make("queue", "queuea")
-pipeline.add(queuea)
-# linked above
-
-audioconvert = Gst.ElementFactory.make("audioconvert", None)
-pipeline.add(audioconvert)
-queuea.link(audioconvert)
-
-audioresample = Gst.ElementFactory.make("audioresample", None)
-pipeline.add(audioresample)
-audioconvert.link(audioresample)
-
-autoaudiosink = Gst.ElementFactory.make("autoaudiosink", None)
-pipeline.add(autoaudiosink)
-audioresample.link(autoaudiosink)
-
-queuev = Gst.ElementFactory.make("queue", "queuev")
-pipeline.add(queuev)
-# linked above
-
-videoconvert1 = Gst.ElementFactory.make("videoconvert", None)
-pipeline.add(videoconvert1)
-queuev.link(videoconvert1)
-
-videoflip = Gst.ElementFactory.make("videoflip", None)
-pipeline.add(videoflip)
-videoflip.set_property("method", "rotate-180")
-videoconvert1.link(videoflip)
-
-gpsoverlay = GstOverlayGPS(paint)
-pipeline.add(gpsoverlay)
-videoflip.link(gpsoverlay)
-
-videoconvert2 = Gst.ElementFactory.make("videoconvert", None)
-pipeline.add(videoconvert2)
-gpsoverlay.link(videoconvert2)
-
-queuev2 = Gst.ElementFactory.make("queue", "queuev2")
-pipeline.add(queuev2)
-videoconvert2.link(queuev2)
-
-autovideosink = Gst.ElementFactory.make("autovideosink", None)
-pipeline.add(autovideosink)
-queuev2.link(autovideosink)
-
-loop = GLib.MainLoop()
-
-did_seek = False
-
-def on_message(bus, message, pipeline, loop):
-    global did_seek
-    
-    mtype = message.type
-    if mtype == Gst.MessageType.STATE_CHANGED:
-        old_state, new_state, pending_state = message.parse_state_changed()
-        print(f"pipeline state: {Gst.Element.state_get_name(old_state)} -> {Gst.Element.state_get_name(new_state)}")
+        filesrc = mkelt("filesrc")
+        filesrc.set_property("location", self.filename)
         
-        if new_state == Gst.State.PLAYING:
-            q = Gst.Query.new_seeking(Gst.Format.TIME)
-            pipeline.query(q)
-            fmt, seek_enabled, start, end = q.parse_seeking()
-            print(f"seek_enabled {seek_enabled}")
+        queuea0 = None
+        queuev0 = None
+
+        qtdemux = mkelt("qtdemux")
+        filesrc.link(qtdemux)
+        def qtdemux_pad_callback(qtdemux, pad):
+            name = pad.get_name()
+            if name == "video_0":
+                pad.link(queuev0.get_static_pad("sink"))
+            elif name == "audio_0":
+                pad.link(queuea0.get_static_pad("sink"))
+            else:
+                print(f"qtdemux unknown output pad {name}?")
+        qtdemux.connect("pad-added", qtdemux_pad_callback)
+        
+        # audio pipeline
+        queuea0 = mkelt("queue")
+        # linked in pad callback
+        aout = queuea0
+        
+        # video pipeline
+        queuev0 = mkelt("queue")
+        # linked in pad callback
+
+        avdec = mkelt("avdec_h265" if self.h265 else "avdec_h264")
+        queuev0.link(avdec)
+
+        queuev1 = mkelt("queue")
+        avdec.link(queuev1)
+
+        videoconvert_in = mkelt("videoconvert")
+        queuev1.link(videoconvert_in)
+        vout = videoconvert_in
+
+        if self.flip:
+            videoflip = mkelt("videoflip")
+            videoflip.set_property("method", "rotate-180")
+            videoconvert_in.link(videoflip)
+            vout = videoflip
+        
+        return (aout, vout)
+    
+    def decode_audio(self, pipeline, aout):
+        def mkelt(eltype):
+            elt = Gst.ElementFactory.make(eltype, None)
+            assert elt
+            pipeline.add(elt)
+            return elt
+
+        avdec_aac = mkelt("avdec_aac")
+        aout.link(avdec_aac)
+
+        audioconvert = mkelt("audioconvert")
+        avdec_aac.link(audioconvert)
+
+        audioresample = mkelt("audioresample")
+        audioconvert.link(audioresample)
+        
+        return audioresample
+    
+    def start_time(self):
+        # Load the timecode.  XXX: do this with libav python
+        (fd, tmcd_out) = tempfile.mkstemp()
+        os.system(f"ffmpeg -v 0 -i {self.filename} -map 0:d:0 -y -f data {tmcd_out}")
+        with open(tmcd_out, "rb") as f:
+            tmcd_frames = struct.unpack(">I", f.read())[0]
+        tmcd_secs = tmcd_frames / self.framerate
+        os.unlink(tmcd_out)
+        # XXX: pull this DMY out somehow (ctime from libav python?)
+        return datetime.datetime(year = 2021, month = 6, day = 5) + datetime.timedelta(seconds = tmcd_secs) + self.timefudge # this is LOCAL TIME, timefudge must fix it to UTC
+
+class RenderLoop:
+    def __init__(self, input, painter):
+        self.input = input
+        self.painter = painter
+        self.start_time = input.start_time()
+    
+    def preview(self, seek = 0.0):
+        """Set up a Gstreamer preview pipeline, and begin playing it."""
+
+        pipeline = Gst.Pipeline.new("pipeline")
+        
+        (aout, vout) = self.input.add_to_pipeline(pipeline)
+        adec = self.input.decode_audio(pipeline, aout)
+
+        def mkelt(eltype):
+            elt = Gst.ElementFactory.make(eltype, None)
+            assert elt
+            pipeline.add(elt)
+            return elt
+
+        autoaudiosink = mkelt("autoaudiosink")
+        adec.link(autoaudiosink)
+
+        gpsoverlay = GstOverlayGPS(paint, self.start_time)
+        pipeline.add(gpsoverlay)
+        vout.link(gpsoverlay)
+
+        videoconvert_out = mkelt("videoconvert")
+        gpsoverlay.link(videoconvert_out)
+
+        queuev2 = mkelt("queue")
+        videoconvert_out.link(queuev2)
+
+        autovideosink = mkelt("autovideosink")
+        queuev2.link(autovideosink)
+
+        loop = GLib.MainLoop()
+        did_seek = False
+
+        def on_message(bus, message):
+            mtype = message.type
+            if mtype == Gst.MessageType.STATE_CHANGED:
+                old_state, new_state, pending_state = message.parse_state_changed()
+                if new_state == Gst.State.PLAYING:
+                    q = Gst.Query.new_seeking(Gst.Format.TIME)
+                    pipeline.query(q)
+                    fmt, seek_enabled, start, end = q.parse_seeking()
             
-            if not did_seek:
-                pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, SEEKTIME * Gst.SECOND) 
-                did_seek = True
+                    nonlocal did_seek, seek
+                    if not did_seek and seek > 0:
+                        pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, seek * Gst.SECOND) 
+                        did_seek = True
+            elif mtype == Gst.MessageType.EOS:
+                print("EOS")
+                loop.quit()
+            elif mtype == Gst.MessageType.ERROR:
+                print("Error!")
+            elif mtype == Gst.MessageType.WARNING:
+                print("Warning!")
+            return True
 
-    if mtype == Gst.MessageType.EOS:
-        print("EOS")
-        loop.quit()
-    elif mtype == Gst.MessageType.ERROR:
-        print("Error!")
-    elif mtype == Gst.MessageType.WARNING:
-        print("Warning!")
-    else:
-        print(mtype)
-    return True
+        bus = pipeline.get_bus()
+        bus.connect("message", on_message)
+        bus.add_signal_watch()
 
-bus = pipeline.get_bus()
-bus.connect("message", on_message, pipeline, loop)
-bus.add_signal_watch()
+        pipeline.set_state(Gst.State.PLAYING)
 
-pipeline.set_state(Gst.State.PLAYING)
-pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, 30 * Gst.SECOND) 
+        try:
+            loop.run()
+        finally:
+            loop.quit()
 
-try:
-    loop.run()
-except:
-    loop.quit()
+RenderLoop(VideoSourceGoPro(FILE, timefudge = datetime.timedelta(hours = 7, seconds = -TIMEFUDGE)), painter = paint).preview()
