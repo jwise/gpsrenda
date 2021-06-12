@@ -25,7 +25,7 @@ class GaugeMap:
         self.miny, self.maxy = self.y + self.padding, self.y + self.h - self.padding
     
     def prerender(self, latdata, londata):
-        print("...computing map bounds...")
+        print("... computing map bounds ...")
         
         # Determine the bounds.
         self.minlat, self.maxlat = math.inf, -math.inf
@@ -55,7 +55,7 @@ class GaugeMap:
             self.minlat = ctrlat - latw / 2
             self.maxlat = ctrlat + latw / 2
 
-        print(f"...rendering map on lat [{self.minlat}, {self.maxlat}], lon [{self.minlon}, {self.maxlon}]...")
+        print(f"... rendering map on lat [{self.minlat}, {self.maxlat}], lon [{self.minlon}, {self.maxlon}] ...")
         ctx = cairo.Context(self.mapsurface)
         
         npts = 0
@@ -72,7 +72,7 @@ class GaugeMap:
         ctx.set_source_rgb(1.0, 1.0, 1.0)
         ctx.stroke()
 
-        print(f"...rendered {npts} points...")
+        print(f"... rendered {npts} points ...")
     
     def render(self, ctx, lat, lon):
         if lat is None or lon is None:
@@ -154,7 +154,7 @@ class GaugeElevationMap:
                                   color = (0.8, 0.8, 0.8))
     
     def prerender(self, distdata, elevdata):
-        print("...computing elevmap bounds...")
+        print("... computing elevmap bounds ...")
         
         # Determine the bounds.
         self.mindist, self.maxdist = distdata[0][1], distdata[-1][1]
@@ -169,7 +169,7 @@ class GaugeElevationMap:
         self.surfx = int((self.maxdist - self.mindist) / self.dist_scale * self.w)
         self.mapsurface = cairo.ImageSurface(cairo.Format.A8, self.surfx, int(self.y - self.padding * 2))
         
-        print(f"...rendering elevmap...")
+        print(f"... rendering elevmap ...")
         ctx = cairo.Context(self.mapsurface)
         
         npts = 0
@@ -198,7 +198,7 @@ class GaugeElevationMap:
         ctx.set_source_rgb(1.0, 1.0, 1.0)
         ctx.stroke()
 
-        print(f"...rendered {npts} points...")
+        print(f"... rendered {npts} points ...")
     
     def render(self, ctx, dist, elev, grade):
         if dist is None or elev is None or grade is None:
