@@ -1,0 +1,59 @@
+import fit
+from video.source import *
+from video.render import *
+from widgets import *
+
+# start
+#FILE='/home/joshua/gopro/20210605-copperopolis/GX010026.MP4'
+#SEEKTIME=140
+
+# robin
+#FILE='/home/joshua/gopro/20210605-copperopolis/GX010037.MP4'
+#SEEKTIME=0
+
+# descent
+#FILE='/home/joshua/gopro/20210605-copperopolis/GX010031.MP4'
+#SEEKTIME=0
+
+# VERY SHORT clip
+FILE='/home/joshua/gopro/20210605-copperopolis/GX010035.MP4'
+SEEKTIME=0
+
+FITFILE='/home/joshua/gopro/20210605-copperopolis/Copperopolis_Road_Race_off_the_back_7_19_but_at_least_I_didn_t_DNF_.fit'
+TIMEFUDGE=datetime.timedelta(hours = 7, seconds = -36.58)
+RECORD_DATE=datetime.datetime(year = 2021, month = 6, day = 5)
+
+f = fit.FitByTime(FITFILE)
+
+cadence_gauge    = GaugeHorizontal(30, 1080 - 30 - 65 * 1, label = '{val:.0f}', caption = 'rpm', data_range = [(75, (1.0, 0, 0)), (90, (0.0, 0.6, 0.0)), (100, (0.0, 0.6, 0.0)), (120, (1.0, 0.0, 0.0))])
+heart_rate_gauge = GaugeHorizontal(30, 1080 - 30 - 65 * 2, label = '{val:.0f}', caption = 'bpm', data_range = [(120, (0, 0.6, 0)), (150, (0.2, 0.6, 0.0)), (180, (0.8, 0.0, 0.0))])
+speed_gauge      = GaugeHorizontal(30, 1080 - 30 - 65 * 3, label = '{val:.1f}', caption = 'mph', data_range = [(8, (0.6, 0, 0)), (15, (0.0, 0.6, 0.0)), (30, (1.0, 0.0, 0.0))])
+temp_gauge       = GaugeVertical  (1920 - 120, 30, data_range = [(60, (0.6, 0.6, 0.0)), (80, (0.6, 0.3, 0)), (100, (0.8, 0.0, 0.0))])
+dist_total_mi    = f.fields['distance'][-1][1] * 0.62137119
+dist_gauge       = GaugeHorizontal(30, 30, w = 1920 - 120 - 30 - 30, label = "{val:.1f}", dummy_label = "99.9", caption = f" / {dist_total_mi:.1f} miles", dummy_caption = None, data_range = [(0, (0.8, 0.7, 0.7)), (dist_total_mi, (0.7, 0.8, 0.7))])
+map              = GaugeMap(1920 - 30 - 400, 1080 - 30 - 65 * 3, h = 65 * 3)
+elevmap          = GaugeElevationMap(1920 - 30 - 400 - 30 - 400, 1080 - 30 - 65 * 3, h = 65 * 3)
+map.prerender(f.fields['position_lat'], f.fields['position_long'])
+elevmap.prerender(f.fields['distance'], f.fields['altitude'])
+
+cadence = f.interpolator('cadence', flatten_zeroes = datetime.timedelta(seconds = 2.0))
+heart_rate = f.interpolator('heart_rate')
+speed_kph = f.interpolator('speed')
+dist_km = f.interpolator('distance')
+temp_c = f.interpolator('temperature')
+latitude = f.interpolator('position_lat')
+longitude = f.interpolator('position_long')
+altitude = f.interpolator('altitude')
+grade = f.interpolator('grade')
+
+def paint(ctx, w, h, tm):
+    cadence_gauge.render(ctx, cadence.value(tm))
+    heart_rate_gauge.render(ctx, heart_rate.value(tm))
+    speed_gauge.render(ctx, speed_kph.value(tm, transform = lambda v: v * 0.62137119))
+    temp_gauge.render(ctx, temp_c.value(tm, transform = lambda v: (v * 9 / 5) + 32))
+    dist_gauge.render(ctx, dist_km.value(tm, transform = lambda v: v * 0.62137119))
+    map.render(ctx, latitude.value(tm), longitude.value(tm))
+    elevmap.render(ctx, dist_km.value(tm), altitude.value(tm), grade.value(tm))
+
+RenderLoop(VideoSourceGoPro(FILE, date = RECORD_DATE, timefudge = TIMEFUDGE), painter = paint).encode("robin.mp4")
+#RenderLoop(VideoSourceGoPro(FILE, timefudge = datetime.timedelta(hours = 7, seconds = -TIMEFUDGE)), painter = paint).preview()
