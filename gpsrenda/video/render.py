@@ -14,6 +14,8 @@ from .gst_hacks import map_gst_buffer
 
 Gst.init(sys.argv)
 
+TRANSFORM_VERBOSE = False
+
 # https://github.com/jackersson/gst-overlay/blob/master/gst_overlay/gst_overlay_cairo.py
 class GstOverlayGPS(GstBase.BaseTransform):
     __gstmetadata__ = ("GPS overlay object",
@@ -34,6 +36,7 @@ class GstOverlayGPS(GstBase.BaseTransform):
         self.painter = painter
         self.video_start_time = start_time
         self.last_tm = time.time()
+        self.frames_processed = 0
     
     def do_transform_ip(self, buffer):
         tst = time.time()
@@ -46,7 +49,9 @@ class GstOverlayGPS(GstBase.BaseTransform):
             ctx = cairo.Context(surf)
             self.painter(ctx, w, h, self.video_start_time + datetime.timedelta(seconds = self.segment.position / 1000000000))
         
-        print(f"transform took {(time.time() - tst) * 1000:.1f}ms, {1 / (time.time() - self.last_tm):.1f} fps")
+        self.frames_processed += 1
+        if TRANSFORM_VERBOSE:
+            print(f"transform took {(time.time() - tst) * 1000:.1f}ms, {1 / (time.time() - self.last_tm):.1f} fps")
         self.last_tm = time.time()
         
         return Gst.FlowReturn.OK
@@ -169,18 +174,29 @@ class RenderLoop:
             if mtype == Gst.MessageType.STATE_CHANGED:
                 pass
             elif mtype == Gst.MessageType.EOS:
-                print("EOS")
+                print("\nEOS")
                 pipeline.set_state(Gst.State.NULL)
                 loop.quit()
             elif mtype == Gst.MessageType.ERROR:
-                print("Error!")
+                print("\nError!")
             elif mtype == Gst.MessageType.WARNING:
-                print("Warning!")
+                print("\nWarning!")
             return True
 
         bus = pipeline.get_bus()
         bus.connect("message", on_message)
         bus.add_signal_watch()
+        
+        starttime = time.time()
+        def on_timer():
+            (_, pos) = pipeline.query_position(Gst.Format.TIME)
+            (_, dur) = pipeline.query_duration(Gst.Format.TIME)
+            now = datetime.timedelta(seconds = time.time() - starttime)
+            pos = datetime.timedelta(microseconds = pos / 1000)
+            dur = datetime.timedelta(microseconds = dur / 1000)
+            print(f"{pos / dur * 100:.1f}% ({pos/now:.2f}x realtime; {pos} / {dur}; {gpsoverlay.frames_processed} frames)", end='\r')
+            return True
+        GLib.timeout_add(200, on_timer)
 
         pipeline.set_state(Gst.State.PLAYING)
 
@@ -190,3 +206,4 @@ class RenderLoop:
             pipeline.send_event(Gst.Event.new_eos())
             pipeline.set_state(Gst.State.NULL)
             loop.quit()
+        print("")
