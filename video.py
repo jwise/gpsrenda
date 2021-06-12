@@ -23,12 +23,16 @@ Gst.init(sys.argv)
 #SEEKTIME=140
 
 # robin
-FILE='/home/joshua/gopro/20210605-copperopolis/GX010037.MP4'
-SEEKTIME=0
+#FILE='/home/joshua/gopro/20210605-copperopolis/GX010037.MP4'
+#SEEKTIME=0
 
 # descent
 #FILE='/home/joshua/gopro/20210605-copperopolis/GX010031.MP4'
 #SEEKTIME=0
+
+# VERY SHORT clip
+FILE='/home/joshua/gopro/20210605-copperopolis/GX010035.MP4'
+SEEKTIME=0
 
 FITFILE='/home/joshua/gopro/20210605-copperopolis/Copperopolis_Road_Race_off_the_back_7_19_but_at_least_I_didn_t_DNF_.fit'
 TIMEFUDGE=36.58
@@ -149,6 +153,7 @@ class VideoSourceGoPro:
         # video pipeline
         avdec = mkelt("avdec_h265" if self.h265 else "avdec_h264")
         multiqueue.get_static_pad(f"src_{multiqueue_vpad.get_name().split('_')[1]}").link(avdec.get_static_pad("sink"))
+        avdec.set_property("max-threads", 4)
 
         queuev1 = mkelt("queue")
         avdec.link(queuev1)
@@ -287,9 +292,10 @@ class RenderLoop:
         gpsoverlay.link(videoconvert_out)
         
         x264enc = mkelt("x264enc")
-        x264enc.set_property("pass", 5) # constant quality
-        x264enc.set_property("speed-preset", 2) # superfast
-        x264enc.set_property("quantizer", 18) # ???
+        x264enc.set_property("pass", "qual") # constant quality
+        x264enc.set_property("speed-preset", "veryfast")
+        x264enc.set_property("bitrate", 60000) # should be quantizer for CRF mode in pass=qual, but it isn't?  oh, well
+        x264enc.set_property("threads", 4)
         videoconvert_out.link(x264enc)
         
         x264q = mkelt("queue")
@@ -334,3 +340,4 @@ class RenderLoop:
             loop.quit()
 
 RenderLoop(VideoSourceGoPro(FILE, timefudge = datetime.timedelta(hours = 7, seconds = -TIMEFUDGE)), painter = paint).encode("robin.mp4")
+#RenderLoop(VideoSourceGoPro(FILE, timefudge = datetime.timedelta(hours = 7, seconds = -TIMEFUDGE)), painter = paint).preview()
