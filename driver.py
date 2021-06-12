@@ -19,11 +19,9 @@ from gpsrenda.widgets import *
 FILE='/home/joshua/gopro/20210605-copperopolis/GX010035.MP4'
 SEEKTIME=0
 
-FITFILE='/home/joshua/gopro/20210605-copperopolis/Copperopolis_Road_Race_off_the_back_7_19_but_at_least_I_didn_t_DNF_.fit'
+fit = gpsrenda.fit.FitByTime('/home/joshua/gopro/20210605-copperopolis/Copperopolis_Road_Race_off_the_back_7_19_but_at_least_I_didn_t_DNF_.fit')
 TIMEFUDGE=datetime.timedelta(hours = 7, seconds = -36.58)
 RECORD_DATE=datetime.datetime(year = 2021, month = 6, day = 5)
-
-f = gpsrenda.fit.FitByTime(FITFILE)
 
 cadence_gauge    = GaugeHorizontal(30, 1080 - 30 - 65 * 1,
                                    label = '{val:.0f}', caption = 'rpm',
@@ -53,25 +51,25 @@ temp_gauge       = GaugeVertical  (1920 - 120, 30,
                                        (80, (0.6, 0.3, 0)),
                                        (100, (0.8, 0.0, 0.0))
                                    ])
-dist_total_mi    = gpsrenda.km_to_mi(f.fields['distance'][-1][1])
+dist_total_mi    = gpsrenda.km_to_mi(fit.fields['distance'][-1][1])
 dist_gauge       = GaugeHorizontal(30, 30, w = 1920 - 120 - 30 - 30,
                                    label = "{val:.1f}", caption = f" / {dist_total_mi:.1f} miles",
                                    dummy_label = "99.9", dummy_caption = None,
                                    data_range = [(0, (0.8, 0.7, 0.7)), (dist_total_mi, (0.7, 0.8, 0.7))])
 map              = GaugeMap(1920 - 30 - 400, 1080 - 30 - 65 * 3, h = 65 * 3)
 elevmap          = GaugeElevationMap(1920 - 30 - 400 - 30 - 400, 1080 - 30 - 65 * 3, h = 65 * 3)
-map.prerender(f.fields['position_lat'], f.fields['position_long'])
-elevmap.prerender(f.fields['distance'], f.fields['altitude'])
+map.prerender(fit.fields['position_lat'], fit.fields['position_long'])
+elevmap.prerender(fit.fields['distance'], fit.fields['altitude'])
 
-cadence = f.interpolator('cadence', flatten_zeroes = datetime.timedelta(seconds = 2.0))
-heart_rate = f.interpolator('heart_rate')
-speed_kph = f.interpolator('speed')
-dist_km = f.interpolator('distance')
-temp_c = f.interpolator('temperature')
-latitude = f.interpolator('position_lat')
-longitude = f.interpolator('position_long')
-altitude = f.interpolator('altitude')
-grade = f.interpolator('grade')
+cadence = fit.interpolator('cadence', flatten_zeroes = datetime.timedelta(seconds = 2.0))
+heart_rate = fit.interpolator('heart_rate')
+speed_kph = fit.interpolator('speed')
+dist_km = fit.interpolator('distance')
+temp_c = fit.interpolator('temperature')
+latitude = fit.interpolator('position_lat')
+longitude = fit.interpolator('position_long')
+altitude = fit.interpolator('altitude')
+grade = fit.interpolator('grade')
 
 def paint(ctx, w, h, tm):
     cadence_gauge.render(ctx, cadence.value(tm))
