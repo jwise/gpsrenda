@@ -121,32 +121,34 @@ class VideoSourceGoPro:
         filesrc = mkelt("filesrc")
         filesrc.set_property("location", self.filename)
         
-        queuea0 = None
-        queuev0 = None
+        multiqueue_vpad = None
+        multiqueue_apad = None
 
         qtdemux = mkelt("qtdemux")
         filesrc.link(qtdemux)
         def qtdemux_pad_callback(qtdemux, pad):
             name = pad.get_name()
             if name == "video_0":
-                pad.link(queuev0.get_static_pad("sink"))
+                pad.link(multiqueue_vpad)
             elif name == "audio_0":
-                pad.link(queuea0.get_static_pad("sink"))
+                pad.link(multiqueue_apad)
             else:
                 print(f"qtdemux unknown output pad {name}?")
-        qtdemux.connect("pad-added", qtdemux_pad_callback)
-        
+        qtdemux.connect("pad-added", qtdemux_pad_callback) # will not fire until preroll
+
+        multiqueue = mkelt("multiqueue")
+        multiqueue_vpad = multiqueue.get_request_pad("sink_%u")
+        multiqueue_apad = multiqueue.get_request_pad("sink_%u")
+        # pads linked above
+
         # audio pipeline
         queuea0 = mkelt("queue")
-        # linked in pad callback
+        multiqueue.get_static_pad(f"src_{multiqueue_apad.get_name().split('_')[1]}").link(queuea0.get_static_pad("sink"))
         aout = queuea0
         
         # video pipeline
-        queuev0 = mkelt("queue")
-        # linked in pad callback
-
         avdec = mkelt("avdec_h265" if self.h265 else "avdec_h264")
-        queuev0.link(avdec)
+        multiqueue.get_static_pad(f"src_{multiqueue_vpad.get_name().split('_')[1]}").link(avdec.get_static_pad("sink"))
 
         queuev1 = mkelt("queue")
         avdec.link(queuev1)
