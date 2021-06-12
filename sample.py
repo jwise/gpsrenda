@@ -5,22 +5,6 @@ import os
 import gpsrenda
 from gpsrenda.widgets import *
 
-# start
-#FILE='/home/joshua/gopro/20210605-copperopolis/GX010026.MP4'
-#SEEKTIME=140
-
-# robin
-#FILE='/home/joshua/gopro/20210605-copperopolis/GX010037.MP4'
-#SEEKTIME=0
-
-# descent
-#FILE='/home/joshua/gopro/20210605-copperopolis/GX010031.MP4'
-#SEEKTIME=0
-
-# VERY SHORT clip
-FILE='/home/joshua/gopro/20210605-copperopolis/GX010035.MP4'
-SEEKTIME=0
-
 fit = gpsrenda.fit.FitByTime('/home/joshua/gopro/20210605-copperopolis/Copperopolis_Road_Race_off_the_back_7_19_but_at_least_I_didn_t_DNF_.fit')
 INGLOB='/home/joshua/gopro/20210605-copperopolis/GX*.MP4'
 OUTDIR='/home/joshua/gopro/20210605-copperopolis/output/'
