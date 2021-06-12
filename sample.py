@@ -1,4 +1,6 @@
 import datetime
+import glob
+import os
 
 import gpsrenda
 from gpsrenda.widgets import *
@@ -20,6 +22,8 @@ FILE='/home/joshua/gopro/20210605-copperopolis/GX010035.MP4'
 SEEKTIME=0
 
 fit = gpsrenda.fit.FitByTime('/home/joshua/gopro/20210605-copperopolis/Copperopolis_Road_Race_off_the_back_7_19_but_at_least_I_didn_t_DNF_.fit')
+INGLOB='/home/joshua/gopro/20210605-copperopolis/GX*.MP4'
+OUTDIR='/home/joshua/gopro/20210605-copperopolis/output/'
 TIMEFUDGE=datetime.timedelta(hours = 7, seconds = -36.58)
 RECORD_DATE=datetime.datetime(year = 2021, month = 6, day = 5)
 
@@ -80,5 +84,12 @@ def paint(ctx, w, h, tm):
     map.render(ctx, latitude.value(tm), longitude.value(tm))
     elevmap.render(ctx, dist_km.value(tm), altitude.value(tm), grade.value(tm))
 
-gpsrenda.video.RenderLoop(gpsrenda.video.source.VideoSourceGoPro(FILE, date = RECORD_DATE, timefudge = TIMEFUDGE), painter = paint).encode("robin.mp4")
+try:
+    os.mkdir(OUTDIR)
+except FileExistsError:
+    pass
+for input in glob.glob(INGLOB):
+    output = f"{OUTDIR}/{os.path.basename(input)}"
+    print(f"rendering {input} -> {output}")
+    gpsrenda.video.RenderLoop(gpsrenda.video.source.VideoSourceGoPro(input, date = RECORD_DATE, timefudge = TIMEFUDGE), painter = paint).encode(output)
 #RenderLoop(VideoSourceGoPro(FILE, timefudge = datetime.timedelta(hours = 7, seconds = -TIMEFUDGE)), painter = paint).preview()
