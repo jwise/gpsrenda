@@ -19,7 +19,6 @@ class Interpolator:
         
         # do we have to rewind?
         if time < self.field[self.p][0]:
-            print("...rewinding...")
             self.p = 0
         
         while self.p < (len(self.field) - 1) and time > self.field[self.p + 1][0]:

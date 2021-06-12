@@ -191,7 +191,11 @@ class RenderLoop:
         def on_timer():
             (_, pos) = pipeline.query_position(Gst.Format.TIME)
             (_, dur) = pipeline.query_duration(Gst.Format.TIME)
-            now = datetime.timedelta(seconds = time.time() - starttime)
+            now = time.time() - starttime
+            if dur == 0 or now == 0:
+                print("starting up...")
+                return True
+            now = datetime.timedelta(seconds = now)
             pos = datetime.timedelta(microseconds = pos / 1000)
             dur = datetime.timedelta(microseconds = dur / 1000)
             print(f"{pos / dur * 100:.1f}% ({pos/now:.2f}x realtime; {pos} / {dur}; {gpsoverlay.frames_processed} frames)", end='\r')
