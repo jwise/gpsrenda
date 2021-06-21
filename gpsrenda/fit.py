@@ -5,7 +5,7 @@ import sys
 class Interpolator:
     def __init__(self, field, flatten_zeroes = None):
         self.field = field
-        self.flatten_zeroes = None
+        self.flatten_zeroes = flatten_zeroes
         self.p = 0
     
     def value(self, time, transform = None):
