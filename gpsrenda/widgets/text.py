@@ -69,3 +69,53 @@ class Text:
         ctx.set_source_rgb(*self.color)
         ctx.move_to(x, y)
         ctx.show_text(text)
+
+class GaugeTime:
+    def __init__(self, x, y, w = None, h = 60):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.dummy_label = "00:00"
+        
+        self.padding = h / 8
+
+        self.label_text = Text(self.x + self.padding,
+                               self.y + self.h - self.padding / 2,
+                               size = self.h * 0.8,
+                               dropshadow = self.h * 0.1,
+                               face = Text.DEFAULT_MONO_FONT,
+                               slant = cairo.FontSlant.ITALIC,
+                               halign = Text.HALIGN_RIGHT, valign = Text.VALIGN_BOTTOM_DESCENDERS)
+        self.label_text.x += self.label_text.measure(self.dummy_label).width + self.label_text.dropshadow
+        if self.w is None:
+            self.w = self.label_text.measure(self.dummy_label).width + self.padding * 2 + self.label_text.dropshadow
+        
+        self.bgpattern = cairo.LinearGradient(0, self.y, 0, self.y + self.h)
+        self.bgpattern.add_color_stop_rgba(0.0, 0.2, 0.2, 0.2, 0.9)
+        self.bgpattern.add_color_stop_rgba(1.0, 0.4, 0.4, 0.4, 0.9)
+    
+    def render(self, ctx, val):
+        if val is None:
+            ctx.push_group()
+            ctx.rectangle(self.x, self.y, self.w, self.h)
+            ctx.set_source(self.bgpattern)
+            ctx.fill()
+            ctx.pop_group_to_source()
+            ctx.paint_with_alpha(0.9)
+            return
+        
+        ctx.push_group()
+        
+        # paint a background
+        ctx.rectangle(self.x, self.y, self.w, self.h)
+        ctx.set_source(self.bgpattern)
+        ctx.fill()
+        
+        # render the big numbers
+        text = f"{val.hour:02}:{val.minute:02}"
+        self.label_text.color = (1.0, 1.0, 1.0)
+        self.label_text.render(ctx, text)
+
+        ctx.pop_group_to_source()
+        ctx.paint_with_alpha(0.9)
