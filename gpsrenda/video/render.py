@@ -188,12 +188,15 @@ class RenderLoop:
         bus.add_signal_watch()
         
         starttime = time.time()
+        alldone = False
         def on_timer():
+            if alldone:
+                return False
             (_, pos) = pipeline.query_position(Gst.Format.TIME)
             (_, dur) = pipeline.query_duration(Gst.Format.TIME)
             now = time.time() - starttime
-            if dur == 0 or now == 0:
-                print("starting up...")
+            if dur <= 1000 or now <= 1:
+                print("starting up...", end='\r')
                 return True
             now = datetime.timedelta(seconds = now)
             pos = datetime.timedelta(microseconds = pos / 1000)
@@ -210,4 +213,5 @@ class RenderLoop:
             pipeline.send_event(Gst.Event.new_eos())
             pipeline.set_state(Gst.State.NULL)
             loop.quit()
+        alldone = True
         print("")
