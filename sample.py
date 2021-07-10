@@ -62,9 +62,9 @@ grade = fit.interpolator('grade')
 def paint(ctx, w, h, tm):
     cadence_gauge.render(ctx, cadence.value(tm))
     heart_rate_gauge.render(ctx, heart_rate.value(tm))
-    speed_gauge.render(ctx, speed_kph.value(tm, transform = gpsrenda.km_to_mi))
-    temp_gauge.render(ctx, temp_c.value(tm, transform = gpsrenda.c_to_f))
-    dist_gauge.render(ctx, dist_km.value(tm, transform = gpsrenda.km_to_mi))
+    speed_gauge.render(ctx, gpsrenda.km_to_mi(speed_kph.value(tm))
+    temp_gauge.render(ctx, gpsrenda.c_to_f(temp_c.value(tm))
+    dist_gauge.render(ctx, gpsrenda.c_to_f(dist_km.value(tm))
     map.render(ctx, latitude.value(tm), longitude.value(tm))
     elevmap.render(ctx, dist_km.value(tm), altitude.value(tm), grade.value(tm))
 

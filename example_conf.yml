@@ -1,0 +1,52 @@
+gauges:
+  - data: speed
+    type: GaugeHorizontal
+    x: 30
+    y: -95
+    label: {val:.1f}
+    caption: 'mph'
+
+  - data: cadence
+    type: GaugeHorizontal
+    x: 30
+    y: -160
+    label: {val:.0f}
+    caption: 'rpm'
+
+  - data: heart_rate
+    type: GaugeHorizontal
+    x: 30
+    y: -225
+    label: {val:.0f}
+    caption: 'bpm'
+
+  - data: power
+    type: GaugeHorizontal
+    x: 30
+    y: -290
+    label: {val:0.0f}
+    caption: 'W'
+
+  - data: temperature
+    type: GaugeVertical
+    x: -120
+    y: 30
+
+  - data: distance
+    type: GaugeHorizontal
+    x: 30
+    y: 30
+    w: 1740
+    label: {val:.1f}
+
+  - data: map
+    type: GaugeMap
+    x: -430
+    y: -290
+    h: 195
+
+  - data: elevation
+    type: GaugeElevationMap
+    x: -860
+    y: -290
+    h: 195
