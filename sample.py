@@ -9,7 +9,6 @@ fit = gpsrenda.fit.FitByTime('/home/joshua/gopro/20210605-copperopolis/Copperopo
 INGLOB='/home/joshua/gopro/20210605-copperopolis/GX*.MP4'
 OUTDIR='/home/joshua/gopro/20210605-copperopolis/output/'
 TIMEFUDGE=datetime.timedelta(hours = 7, seconds = -36.58)
-RECORD_DATE=datetime.datetime(year = 2021, month = 6, day = 5)
 
 cadence_gauge    = GaugeHorizontal(30, 1080 - 30 - 65 * 1,
                                    label = '{val:.0f}', caption = 'rpm',
@@ -75,5 +74,5 @@ except FileExistsError:
 for input in glob.glob(INGLOB):
     output = f"{OUTDIR}/{os.path.basename(input)}"
     print(f"rendering {input} -> {output}")
-    gpsrenda.video.RenderLoop(gpsrenda.video.source.VideoSourceGoPro(input, date = RECORD_DATE, timefudge = TIMEFUDGE), painter = paint).encode(output)
+    gpsrenda.video.RenderLoop(gpsrenda.video.source.VideoSourceGoPro(input, timefudge = TIMEFUDGE), painter = paint).encode(output)
 #RenderLoop(VideoSourceGoPro(FILE, timefudge = datetime.timedelta(hours = 7, seconds = -TIMEFUDGE)), painter = paint).preview()

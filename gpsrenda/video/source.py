@@ -2,6 +2,7 @@ import datetime
 import tempfile
 import os
 import struct
+import subprocess
 
 import gi
 gi.require_version('Gst', '1.0')
@@ -10,16 +11,13 @@ gi.require_version('GstBase', '1.0')
 from gi.repository import Gst, GstApp, GstBase, GLib, GObject
 
 class VideoSourceGoPro:
-    def __init__(self, filename, flip = True, h265 = True, framerate = 30000/1001, date = None, timefudge = datetime.timedelta(seconds = 0)):
+    def __init__(self, filename, flip = True, h265 = True, framerate = 30000/1001, timefudge = datetime.timedelta(seconds = 0)):
         self.filename = filename
         self.flip = flip
         self.h265 = h265
         self.framerate = framerate # needed until we can pull this out of the file with libav
-        self.date = date # needed until we can pull this out of the file with libav
-        if self.date is None:
-            raise ValueError("recording date is required")
         self.timefudge = timefudge
-    
+
     def add_to_pipeline(self, pipeline):
         """Returns a tuple of GstElements that have src pads for *decoded* video and *encoded* audio."""
         def mkelt(eltype):
@@ -30,7 +28,7 @@ class VideoSourceGoPro:
 
         filesrc = mkelt("filesrc")
         filesrc.set_property("location", self.filename)
-        
+
         multiqueue_vpad = None
         multiqueue_apad = None
 
@@ -55,7 +53,7 @@ class VideoSourceGoPro:
         queuea0 = mkelt("queue")
         multiqueue.get_static_pad(f"src_{multiqueue_apad.get_name().split('_')[1]}").link(queuea0.get_static_pad("sink"))
         aout = queuea0
-        
+
         # video pipeline
         avdec = mkelt("avdec_h265" if self.h265 else "avdec_h264")
         multiqueue.get_static_pad(f"src_{multiqueue_vpad.get_name().split('_')[1]}").link(avdec.get_static_pad("sink"))
@@ -73,9 +71,9 @@ class VideoSourceGoPro:
             videoflip.set_property("method", "rotate-180")
             videoconvert_in.link(videoflip)
             vout = videoflip
-        
+
         return (aout, vout)
-    
+
     def decode_audio(self, pipeline, aout):
         def mkelt(eltype):
             elt = Gst.ElementFactory.make(eltype, None)
@@ -91,16 +89,18 @@ class VideoSourceGoPro:
 
         audioresample = mkelt("audioresample")
         audioconvert.link(audioresample)
-        
+
         return audioresample
-    
+
     def start_time(self):
         # Load the timecode.  XXX: do this with libav python
-        (fd, tmcd_out) = tempfile.mkstemp()
-        os.system(f"ffmpeg -v 0 -i {self.filename} -map 0:d:0 -y -f data {tmcd_out}")
-        with open(tmcd_out, "rb") as f:
-            tmcd_frames = struct.unpack(">I", f.read())[0]
-        tmcd_secs = tmcd_frames / self.framerate
-        os.unlink(tmcd_out)
-        # XXX: pull this DMY out somehow (ctime from libav python?)
-        return self.date + datetime.timedelta(seconds = tmcd_secs) + self.timefudge # this is LOCAL TIME, timefudge must fix it to UTC
+        cmd = ["ffprobe",
+               "-v", "quiet",
+               "-print_format", "compact",
+               "-show_entries", "format_tags=creation_time",
+               self.filename]
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
+        out = process.stdout.read()
+        creation_time_str = out.split("=")[1]
+        creation_time = .datetime.datetime.strptime(creation_time_str, "%Y-%m-%dT%H:%M:%S.%fZ")
+        return creation_time
