@@ -14,7 +14,7 @@ gi.require_version('GstBase', '1.0')
 from gi.repository import Gst, GstApp, GstBase, GLib, GObject
 
 class VideoSourceGoPro:
-    def __init__(self, filename, flip = True, h265 = True, framerate = 30000/1001, timefudge = datetime.timedelta(seconds = 0)):
+    def __init__(self, filename, flip = True, h265 = True, framerate = 30000/1001, time_offset = datetime.timedelta(seconds = 0)):
         self.filename = filename
         self.flip = flip
         self.h265 = h265

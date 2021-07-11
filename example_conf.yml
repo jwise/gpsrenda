@@ -5,6 +5,7 @@ gauges:
     y: -95
     label: {val:.1f}
     caption: 'mph'
+    units: 'imperial'
 
   - data: cadence
     type: GaugeHorizontal
@@ -31,6 +32,7 @@ gauges:
     type: GaugeVertical
     x: -120
     y: 30
+    units: 'imperial'
 
   - data: distance
     type: GaugeHorizontal
@@ -38,15 +40,22 @@ gauges:
     y: 30
     w: 1740
     label: {val:.1f}
+    units: 'imperial'
 
-  - data: map
+  - data:
+      - position_lat
+      - position_long
     type: GaugeMap
     x: -430
     y: -290
     h: 195
 
-  - data: elevation
+  - data:
+      - distance
+      - altitude
+      - grade
     type: GaugeElevationMap
     x: -860
     y: -290
     h: 195
+    units: 'imperial'

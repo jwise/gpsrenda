@@ -1,6 +1,10 @@
+#!/usr/bin/env python
 import argparse as ap
+from datetime import timedelta
 from glob import glob
 from importlib import import_module
+from os import makedirs
+from os.path import basename, dirname, join
 
 import yaml
 
@@ -11,49 +15,68 @@ from gpsrenda.video.source import VideoSourceGoPro
 
 def renda(video_paths, data_path, time_offset, config_path):
     fit_data = FitByTime(data_path)
-    cadence = fit.interpolator('cadence')
-    heart_rate = fit.interpolator('heart_rate')
-    power = fit.interpolator('power')
-    speed_kph = fit.interpolator('speed')
-    dist_km = fit.interpolator('distance')
-    temp_c = fit.interpolator('temperature')
-    latitude = fit.interpolator('position_lat')
-    longitude = fit.interpolator('position_long')
-    altitude = fit.interpolator('altitude')
-    grade = fit.interpolator('grade')
+    interpolators = {
+        cadence:        fit.interpolator('cadence'),
+        heart_rate:     fit.interpolator('heart_rate'),
+        power:          fit.interpolator('power'),
+        speed:          fit.interpolator('speed'),
+        distance:       fit.interpolator('distance'),
+        temperature:    fit.interpolator('temperature'),
+        position_lat:   fit.interpolator('position_lat'),
+        position_long:  fit.interpolator('position_long'),
+        altitude:       fit.interpolator('altitude'),
+        grade:          fit.interpolator('grade')
+    }
+
 
     with open(config_path, 'r') as config_file:
         config_data = yaml.load(config_file)
 
-    gauges = {}
+    gauges = []
     gauge_module = import_module('gpsrenda.widgets')
     for gauge_spec in config_data['gauges']:
-        gauge_class = getattr(gauge_module, gauge_spec.pop('type'))
-        gauge_data = gauge_spec.pop('data')
-        gauge = gauge_class(**gauge_spec)
-        guages[gauge_data] = gauge
+        gauge_class = getattr(gauge_module, gauge_spec['type'])
+        gauge_params = gauge_sepc.copy()
+        [gauge_params.pop(k) for k in ['type', 'data']]
+        gauge = gauge_class(**gauge_params)
+        gauges.append(gauge)
 
     def paint(ctx, w, h, tm):
-        for gauge_data, gauge in gauges.items():
-            # TODO: render the gauge
+        for gauge_spec, (gauge_data, gauge) in zip(config_data['gauges'], gauges.items()):
+            # Check if a single data type or a list of data sources was given
+            if isinstance(gauge_spec['data'], str):
+                data_srcs = [gauge_spec['data']]
+            else:
+                data_srcs = gauge_spec['data']
+
+            values = [interpolators[src].value(tm) for src in data_srcs]
+            gauge.render(ctx, *values)
 
     # TODO: here
     for video_path in video_paths:
-        source = VideoSourceGoPro(video_path, time_offset=-time_offset)
-        # TODO: remove need to supply date
+        source = VideoSourceGoPro(video_path, time_offset=time_offset)
 
-        # TODO: generate output path
-        RenderLoop(source, painter=paint).encode(output)
+        out_dir = join(dirname(video_path), 'rendered')
+        try:
+            os.makedirs(out_dir)
+        except FileExistsError:
+            pass
+        output_file = join(out_dir, basename(video_path))
+
+        RenderLoop(source, painter=paint).encode(output_file)
 
 
 if __name__ == "__main__":
     parser = ap.ArgumentParser()
     parser.add_argument('video_pattern', type='str', help="Path or glob pointing to video file(s)")
     parser.add_argument('data_path', type='str', help="Path to the activity data file")
-    parser.add_argument('time_offset', type='float', help="How far ahead (+) or behind (-) are the fit file's internal timestamps compared to the video's")
     parser.add_argument('config_path', type='str', help="Path to the gauges setup and config file")
+    parser.add_argument('-t', '--time-offset', dest='time_offset', type='float', default=0.,
+                        help="How far ahead (+) or behind (-) are the fit file's internal timestamps compared to the video's")
+
 
     args = parser.parse_args()
     video_paths = glob(args)
+    time_offset = timedelta(seconds=args.time_offset)
 
-    renda(video_paths, args.data_path, args.time_offset, args.config_path)
+    renda(video_paths, args.data_path, -time_offset, args.config_path)
