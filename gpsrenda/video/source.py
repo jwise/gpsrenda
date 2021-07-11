@@ -1,8 +1,11 @@
 import datetime
-import tempfile
 import os
 import struct
 import subprocess
+import tempfile
+
+import pytz
+from tzlocal import get_localzone
 
 import gi
 gi.require_version('Gst', '1.0')
@@ -102,5 +105,7 @@ class VideoSourceGoPro:
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
         out = process.stdout.read()
         creation_time_str = out.split("=")[1]
-        creation_time = .datetime.datetime.strptime(creation_time_str, "%Y-%m-%dT%H:%M:%S.%fZ")
+        creation_time = datetime.datetime.strptime(creation_time_str, "%Y-%m-%dT%H:%M:%S.%fZ")
+        # Declare this to be in local time, then convert to UTC
+        creation_time = creation_time.replace(tzinfo=get_localzone()).astimezone(pytz.utc)
         return creation_time

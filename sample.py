@@ -8,7 +8,7 @@ from gpsrenda.widgets import *
 fit = gpsrenda.fit.FitByTime('/home/joshua/gopro/20210605-copperopolis/Copperopolis_Road_Race_off_the_back_7_19_but_at_least_I_didn_t_DNF_.fit')
 INGLOB='/home/joshua/gopro/20210605-copperopolis/GX*.MP4'
 OUTDIR='/home/joshua/gopro/20210605-copperopolis/output/'
-TIMEFUDGE=datetime.timedelta(hours = 7, seconds = -36.58)
+TIMEFUDGE=datetime.timedelta(seconds = -36.58)
 
 cadence_gauge    = GaugeHorizontal(30, 1080 - 30 - 65 * 1,
                                    label = '{val:.0f}', caption = 'rpm',
