@@ -12,9 +12,8 @@ class SpeedWidget:
         caption = 'mph' if units == 'imperial' else 'kph'
 
         gauge = gauge_class(x, y, label="{val:.1f}", dummy_label="0.0", caption=caption,
-                            data_range=[(8, (0.6, 0, 0)),
-                                        (15, (0.0, 0.6, 0.0)),
-                                        (30, (1.0, 0.0, 0.0))])
+                            data_range=[(0, [1.0, 0.0, 0.0]),
+                                        (1000, [1.0, 0.0, 0.0])])
         self.gauge = gauge
 
     def render(self, context, t):
@@ -30,10 +29,8 @@ class CadenceWidget:
         gauge_module = import_module('gpsrenda.widgets')
         gauge_class = getattr(gauge_module, style)
         gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="0.0", caption="rpm",
-                            data_range=[(60, (1.0, 0, 0)),
-                                        (80, (0.0, 0.6, 0.0)),
-                                        (100, (0.0, 0.6, 0.0)),
-                                        (120, (1.0, 0.0, 0.0))])
+                            data_range=[(0, [0.0, 1.0, 0.0]),
+                                        (1000, [0.0, 1.0, 0.0])])
         self.gauge = gauge
 
     def render(self, context, t):
@@ -47,9 +44,8 @@ class HeartRateWidget:
         gauge_module = import_module('gpsrenda.widgets')
         gauge_class = getattr(gauge_module, style)
         gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="0.0", caption="bpm",
-                            data_range=[(100, (0, 0.6, 0)),
-                                        (150, (0.2, 0.6, 0.0)),
-                                        (200, (0.8, 0.0, 0.0))])
+                            data_range=[(0, [0.0, 0.0, 1.0]),
+                                        (1000, [0.0, 0.0, 1.0])])
         self.gauge = gauge
 
     def render(self, context, t):
