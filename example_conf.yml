@@ -2,35 +2,35 @@ gauges:
   - data: speed
     type: GaugeHorizontal
     x: 30
-    y: -95
-    label: {val:.1f}
+    y: 985
+    label: '{val:.1f}'
     caption: 'mph'
     units: 'imperial'
 
   - data: cadence
     type: GaugeHorizontal
     x: 30
-    y: -160
-    label: {val:.0f}
+    y: 920
+    label: '{val:.0f}'
     caption: 'rpm'
 
   - data: heart_rate
     type: GaugeHorizontal
     x: 30
-    y: -225
-    label: {val:.0f}
+    y: 855
+    label: '{val:.0f}'
     caption: 'bpm'
 
   - data: power
     type: GaugeHorizontal
     x: 30
-    y: -290
-    label: {val:0.0f}
+    y: 790
+    label: '{val:0.0f}'
     caption: 'W'
 
   - data: temperature
     type: GaugeVertical
-    x: -120
+    x: 1800
     y: 30
     units: 'imperial'
 
@@ -39,15 +39,15 @@ gauges:
     x: 30
     y: 30
     w: 1740
-    label: {val:.1f}
+    label: '{val:.1f}'
     units: 'imperial'
 
   - data:
       - position_lat
       - position_long
     type: GaugeMap
-    x: -430
-    y: -290
+    x: 1490
+    y: 790
     h: 195
 
   - data:
@@ -55,7 +55,7 @@ gauges:
       - altitude
       - grade
     type: GaugeElevationMap
-    x: -860
-    y: -290
+    x: 1060
+    y: 790
     h: 195
     units: 'imperial'

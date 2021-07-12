@@ -47,13 +47,11 @@ class FitByTime:
     def __init__(self, name):
         print(f"... loading {name} ...")
         self.fitfile = fitparse.FitFile(name, data_processor = fitparse.StandardUnitsDataProcessor())
-        self.fitmessages = list(self.fitfile.get_messages())
+        self.fitmessages = list(self.fitfile.get_messages('record'))
         self.fields = {}
         print(f"... massaging data ...")
         for m in self.fitmessages:
             if not isinstance(m, fitparse.DataMessage):
-                continue
-            if m.name != 'record':
                 continue
             vs = m.get_values()
             if 'timestamp' not in vs:
@@ -63,12 +61,30 @@ class FitByTime:
                     continue
                 self.fields[v] = self.fields.get(v, [])
                 self.fields[v].append((vs['timestamp'], vs[v], ))
+        print(f"data starts at {self.fields['altitude'][0][0]}")
 
     def interpolator(self, field, flatten_zeroes = None):
         if field not in self.fields:
             print(f"field {field} not in input!")
             return Interpolator(None)
         return Interpolator(self.fields[field], flatten_zeroes = flatten_zeroes)
+
+
+class GradeInterpolator:
+    def __init__(self, dist_interp, alt_interp, delta=2.5):
+        self.dist_interp = dist_interp
+        self.alt_interp = alt_interp
+        self.delta = delta
+
+    def value(self, t):
+        dt = datetime.timedelta(seconds=self.delta)
+        d0 = self.dist_interp.value(t - dt)
+        d1 = self.dist_interp.value(t + dt)
+        a0 = self.dist_interp.value(t - dt)
+        a1 = self.dist_interp.value(t + dt)
+        grade = (a1 - a0) / (d1 - d0) / 1000 * 100
+        return grade
+
 
 if __name__ == "__main__":
     f = FitByTime(sys.argv[1])

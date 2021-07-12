@@ -4,7 +4,7 @@ from .utils import *
 from .text import Text
 
 class GaugeHorizontal:
-    def __init__(self, x, y, w = 600, h = 60, label = '{val:.0f}', dummy_label = '99.9', caption = '', dummy_caption = 'mph', data_range = [(0, (1.0, 0, 0)), (100, (1.0, 0, 0))]):
+    def __init__(self, x, y, w = 600, h = 60, label = '{val:.0f}', dummy_label = '99.9', caption = '', dummy_caption = 'mph', data_range = [(0, (1.0, 0, 0)), (100, (1.0, 0, 0))], units=None):
         self.x = x
         self.y = y
         self.w = w
@@ -92,7 +92,7 @@ class GaugeHorizontal:
         ctx.paint_with_alpha(0.9)
 
 class GaugeVertical:
-    def __init__(self, x, y, w = 80, h = 400, label = '{val:.0f}°F', dummy_label = '100°F', data_range = [(70, (1.0, 0, 0)), (100, (1.0, 0, 0))]):
+    def __init__(self, x, y, w = 80, h = 400, label = '{val:.0f}°F', dummy_label = '100°F', data_range = [(70, (1.0, 0, 0)), (100, (1.0, 0, 0))], units=None):
         self.x = x
         self.y = y
         self.w = w
