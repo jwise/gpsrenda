@@ -25,7 +25,7 @@ def renda(video_paths, data_path, time_offset, config_path, preview):
     widget_module = import_module('gpsrenda.widgets.widgets')
     for widget_spec in config_data['widgets']:
         widget_type = widget_spec.pop('type')
-        widget_class = getattr(widget_module, widget_type)
+        widget_class = getattr(widget_module, widget_type+'Widget')
         widget = widget_class(data_source=data_source, **widget_spec)
         widgets.append(widget)
 
@@ -48,19 +48,29 @@ def renda(video_paths, data_path, time_offset, config_path, preview):
             return out_frame[:,:,:3][:,:,::-1]
 
         composite_clip = mpy.VideoClip(make_frame, duration=clip.duration)
+
+        out_dir = join(dirname(video_path), 'rendered')
+        try:
+            makedirs(out_dir)
+        except FileExistsError:
+            pass
+
         if preview:
-            composite_clip.show(interactive=True)
+            output_file = join(out_dir, basename(video_path).rsplit('.', 1)[0] + ".png")
+            composite_clip.save_frame(output_file)
         else:
             composite_clip.audio = clip.audio
 
-            out_dir = join(dirname(video_path), 'rendered')
-            try:
-                makedirs(out_dir)
-            except FileExistsError:
-                pass
             output_file = join(out_dir, basename(video_path))
 
-            composite_clip.write_videofile(output_file, fps=clip.fps)
+            composite_clip.write_videofile(
+                output_file,
+                fps=clip.fps,
+                threads=None,
+                ffmpeg_params=[
+                    '-crf', '30',
+                ]
+            )
 
 
 if __name__ == "__main__":

@@ -1,19 +1,24 @@
-from importlib import import_module
-
+from gpsrenda.widgets import *
 from gpsrenda.utils import timestamp_to_seconds, km_to_mi, c_to_f
 
+STYLE_TABLE = {
+    'hbar': GaugeHorizontal,
+    'vbar': GaugeVertical,
+    'map': GaugeMap,
+    'grade': GaugeElevationMap,
+}
 
 class SpeedWidget:
-    def __init__(self, data_source, x, y, style='GaugeHorizontal', units='metric'):
+    def __init__(self, data_source, x, y, style='hbar', units='metric'):
         self.data_source = data_source
         self.units = units
-        gauge_module = import_module('gpsrenda.widgets')
-        gauge_class = getattr(gauge_module, style)
+        gauge_class = STYLE_TABLE[style]
         caption = 'mph' if units == 'imperial' else 'kph'
 
-        gauge = gauge_class(x, y, label="{val:.1f}", dummy_label="0.0", caption=caption,
-                            data_range=[(0, [1.0, 0.0, 0.0]),
-                                        (1000, [1.0, 0.0, 0.0])])
+        gauge = gauge_class(x, y, label="{val:.1f}", dummy_label="99.9", caption=caption,
+                            data_range=[(0, [0.2, 0.0, 0.6]),
+                                        (15, [0.0, 0.6, 0.0]),
+                                        (30, [0.8, 0.0, 0.0])])
         self.gauge = gauge
 
     def render(self, context, t):
@@ -24,13 +29,13 @@ class SpeedWidget:
 
 
 class CadenceWidget:
-    def __init__(self, data_source, x, y, style='GaugeHorizontal'):
+    def __init__(self, data_source, x, y, style='hbar'):
         self.data_source = data_source
-        gauge_module = import_module('gpsrenda.widgets')
-        gauge_class = getattr(gauge_module, style)
-        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="0.0", caption="rpm",
-                            data_range=[(0, [0.0, 1.0, 0.0]),
-                                        (1000, [0.0, 1.0, 0.0])])
+        gauge_class = STYLE_TABLE[style]
+        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="999", caption="rpm",
+                            data_range=[(60, [0.8, 0.0, 0.0]),
+                                        (90, [0.0, 0.6, 0.0]),
+                                        (120, [0.8, 0.0, 0.0])])
         self.gauge = gauge
 
     def render(self, context, t):
@@ -39,13 +44,12 @@ class CadenceWidget:
 
 
 class HeartRateWidget:
-    def __init__(self, data_source, x, y, style='GaugeHorizontal'):
+    def __init__(self, data_source, x, y, style='hbar'):
         self.data_source = data_source
-        gauge_module = import_module('gpsrenda.widgets')
-        gauge_class = getattr(gauge_module, style)
-        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="0.0", caption="bpm",
-                            data_range=[(0, [0.0, 0.0, 1.0]),
-                                        (1000, [0.0, 0.0, 1.0])])
+        gauge_class = STYLE_TABLE[style]
+        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="999", caption="bpm",
+                            data_range=[(100, [0.2, 0.0, 0.6]),
+                                        (200, [0.8, 0.0, 0.0])])
         self.gauge = gauge
 
     def render(self, context, t):
@@ -54,11 +58,10 @@ class HeartRateWidget:
 
 
 class PowerWidget:
-    def __init__(self, data_source, x, y, style='GaugeHorizontal'):
+    def __init__(self, data_source, x, y, style='hbar'):
         self.data_source = data_source
-        gauge_module = import_module('gpsrenda.widgets')
-        gauge_class = getattr(gauge_module, style)
-        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="0.0", caption="W",
+        gauge_class = STYLE_TABLE[style]
+        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="999", caption="W",
                             data_range=[(0, (0, 0.6, 0)),
                                         (300, (0.2, 0.6, 0.0)),
                                         (800, (0.8, 0.0, 0.0))])
@@ -70,11 +73,10 @@ class PowerWidget:
 
 
 class TemperatureWidget:
-    def __init__(self, data_source, x, y, style='GaugeVertical', units='metric'):
+    def __init__(self, data_source, x, y, style='vbar', units='metric'):
         self.data_source = data_source
         self.units = units
-        gauge_module = import_module('gpsrenda.widgets')
-        gauge_class = getattr(gauge_module, style)
+        gauge_class = STYLE_TABLE[style]
         suffix = '°F' if units == 'imperial' else '°C'
         gauge = gauge_class(x, y, label="{val:.0f}"+suffix, dummy_label="0.0",
                             data_range=[(40, (0.6, 0, 0)),
@@ -90,11 +92,10 @@ class TemperatureWidget:
 
 
 class DistanceWidget:
-    def __init__(self, data_source, x, y, w, style='GaugeHorizontal', units='metric'):
+    def __init__(self, data_source, x, y, w, style='hbar', units='metric'):
         self.data_source = data_source
         self.units = units
-        gauge_module = import_module('gpsrenda.widgets')
-        gauge_class = getattr(gauge_module, style)
+        gauge_class = STYLE_TABLE[style]
         suffix = 'mi' if units == 'imperial' else 'km'
 
         total_distance = data_source.fields['distance'][-1][1]
@@ -114,11 +115,9 @@ class DistanceWidget:
 
 
 class MapWidget:
-    def __init__(self, data_source, x, y, h, style='GaugeMap'):
+    def __init__(self, data_source, x, y, h, style='map'):
         self.data_source = data_source
-        gauge_module = import_module('gpsrenda.widgets')
-        gauge_class = getattr(gauge_module, style)
-
+        gauge_class = STYLE_TABLE[style]
         gauge = gauge_class(x, y, h=h)
         # prerender
         gauge.prerender(self.data_source.fields['position_lat'], self.data_source.fields['position_long'])
@@ -129,12 +128,10 @@ class MapWidget:
 
 
 class ElevationWidget:
-    def __init__(self, data_source, x, y, h, style='GaugeMap', units='imperial'):
+    def __init__(self, data_source, x, y, h, style='grade', units='imperial'):
         self.data_source = data_source
         self.units = units
-        gauge_module = import_module('gpsrenda.widgets')
-        gauge_class = getattr(gauge_module, style)
-
+        gauge_class = STYLE_TABLE[style]
         gauge = gauge_class(x, y, h=h, dist_scale=10 * 1000)
         # prerender
         gauge.prerender(self.data_source.fields['distance'], self.data_source.fields['altitude'])

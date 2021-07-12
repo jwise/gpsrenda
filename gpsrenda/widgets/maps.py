@@ -143,13 +143,13 @@ class GaugeElevationMap:
         if with_grade:
             self.grade_text = Text(self.x + self.padding / 3, self.y + self.h - self.padding / 3,
                                    size = self.h * 0.2,
-                                   dropshadow = self.h * 0.03,
+                                   dropshadow = 0,
                                    halign = Text.HALIGN_LEFT, valign = Text.VALIGN_BOTTOM)
 
         if with_elev:
             self.elev_text = Text(self.x + self.padding / 3, self.y + self.h - self.padding / 3,
                                   size = self.h * 0.15,
-                                  dropshadow = self.h * 0.03,
+                                  dropshadow = 0,
                                   halign = Text.HALIGN_CENTER, valign = Text.VALIGN_TOP,
                                   color = (0.8, 0.8, 0.8))
 

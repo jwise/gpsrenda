@@ -19,7 +19,7 @@ class GaugeHorizontal:
         self.caption_text = Text(self.x + self.w - self.padding / 2,
                                  self.y + self.h - self.padding,
                                  size = self.h * 0.5,
-                                 dropshadow = self.h * 0.1,
+                                 dropshadow = 0,
                                  halign = Text.HALIGN_LEFT, valign = Text.VALIGN_BOTTOM_DESCENDERS)
         self.caption_text.x -= self.caption_text.measure(dummy_caption).width + self.caption_text.dropshadow
 
@@ -28,7 +28,7 @@ class GaugeHorizontal:
                                face = Text.DEFAULT_MONO_FONT,
                                size = self.h * 0.9,
                                #slant = cairo.FontSlant.ITALIC,
-                               dropshadow = self.h * 0.1,
+                               dropshadow = 0,
                                halign = Text.HALIGN_RIGHT, valign = Text.VALIGN_BASELINE)
 
         self.gaugew = self.label_text.x - self.label_text.measure(dummy_label).x_advance - self.padding * 3 - self.x
