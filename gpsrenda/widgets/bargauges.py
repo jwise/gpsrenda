@@ -40,9 +40,7 @@ class GaugeHorizontal:
 
         self.gradient = HSVGradient(self.x + self.padding, 0, self.x + self.padding + self.gaugew, 0, data_range)
 
-        self.bgpattern = cairo.LinearGradient(0, self.y, 0, self.y + self.h)
-        self.bgpattern.add_color_stop_rgba(0.0, 0.2, 0.2, 0.2, 0.9)
-        self.bgpattern.add_color_stop_rgba(1.0, 0.4, 0.4, 0.4, 0.9)
+        self.bgpattern = cairo.SolidPattern(0.2, 0.2, 0.2, 0.9)
 
     def render(self, ctx, val):
         if val is None:
@@ -117,9 +115,7 @@ class GaugeVertical:
 
         self.gradient = HSVGradient(0, self.y + self.padding + self.gaugeh, 0, self.y + self.padding, data_range)
 
-        self.bgpattern = cairo.LinearGradient(0, self.y, 0, self.y + self.h)
-        self.bgpattern.add_color_stop_rgba(0.0, 0.2, 0.2, 0.2, 0.9)
-        self.bgpattern.add_color_stop_rgba(1.0, 0.4, 0.4, 0.4, 0.9)
+        self.bgpattern = cairo.SolidPattern(0.2, 0.2, 0.2, 0.9)
 
     def render(self, ctx, val):
         if val is None:

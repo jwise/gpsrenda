@@ -15,10 +15,16 @@ class SpeedWidget:
         gauge_class = STYLE_TABLE[style]
         caption = 'mph' if units == 'imperial' else 'kph'
 
+        colors = [(0, [0.2, 0.0, 0.6]),
+                  (25, [0.0, 0.6, 0.0]),
+                  (50, [0.8, 0.0, 0.0])]
+
+        if units == 'imperial':
+            for idx, (val, rgb) in enumerate(colors):
+                colors[idx] = (km_to_mi(val), rgb)
+
         gauge = gauge_class(x, y, label="{val:.1f}", dummy_label="99.9", caption=caption,
-                            data_range=[(0, [0.2, 0.0, 0.6]),
-                                        (15, [0.0, 0.6, 0.0]),
-                                        (30, [0.8, 0.0, 0.0])])
+                            data_range=colors)
         self.gauge = gauge
 
     def render(self, context, t):
@@ -78,10 +84,17 @@ class TemperatureWidget:
         self.units = units
         gauge_class = STYLE_TABLE[style]
         suffix = '°F' if units == 'imperial' else '°C'
+
+        colors = [(5, (0.6, 0, 0)),
+                  (20, (0.0, 0.6, 0.0)),
+                  (35, (0.0, 0.0, 1.0))]
+
+        if units == 'imperial':
+            for idx, (val, rgb) in enumerate(colors):
+                colors[idx] = (c_to_f(val), rgb)
+
         gauge = gauge_class(x, y, label="{val:.0f}"+suffix, dummy_label="0.0",
-                            data_range=[(40, (0.6, 0, 0)),
-                                        (70, (0.0, 0.6, 0.0)),
-                                        (100, (0.0, 0.0, 1.0))])
+                            data_range=colors)
         self.gauge = gauge
 
     def render(self, context, t):
@@ -99,12 +112,16 @@ class DistanceWidget:
         suffix = 'mi' if units == 'imperial' else 'km'
 
         total_distance = data_source.fields['distance'][-1][1]
+
         if units == 'imperial':
             total_distance = km_to_mi(total_distance) / 1000
 
+            colors = [(0, [0.75, 0.75, 0.75]),
+                      (total_distance, [0.75, 0.75, 0.75])]
+
+
         gauge = gauge_class(x, y, w=w, label="{val:.1f}", dummy_label="0.0", caption=f" / {total_distance:.1f} {suffix}",
-                            data_range=[(0, (0.8, 0.7, 0.7)),
-                                        (total_distance, (0.7, 0.8, 0.7))])
+                            data_range=colors)
         self.gauge = gauge
 
     def render(self, context, t):

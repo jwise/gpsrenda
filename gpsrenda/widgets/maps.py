@@ -15,9 +15,7 @@ class GaugeMap:
 
         self.padding = w / 15
 
-        self.bgpattern = cairo.LinearGradient(0, self.y, 0, self.y + self.h)
-        self.bgpattern.add_color_stop_rgba(0.0, 0.2, 0.2, 0.2, 0.9)
-        self.bgpattern.add_color_stop_rgba(1.0, 0.4, 0.4, 0.4, 0.9)
+        self.bgpattern = cairo.SolidPattern(0.2, 0.2, 0.2, 0.9)
 
         self.mapsurface = cairo.ImageSurface(cairo.Format.A8, w, h)
 
@@ -127,9 +125,7 @@ class GaugeElevationMap:
 
         self.padding = w / 10
 
-        self.bgpattern = cairo.LinearGradient(0, self.y, 0, self.y + self.h)
-        self.bgpattern.add_color_stop_rgba(0.0, 0.2, 0.2, 0.2, 0.9)
-        self.bgpattern.add_color_stop_rgba(1.0, 0.4, 0.4, 0.4, 0.9)
+        self.bgpattern = cairo.SolidPattern(0.2, 0.2, 0.2, 0.9)
 
         self.fgpattern = cairo.LinearGradient(self.x, 0, self.x + self.w, 0)
         self.fgpattern.add_color_stop_rgba(0.0,                         0.8, 0.8, 0.8, 0.0)
