@@ -4,91 +4,35 @@ from datetime import datetime
 from datetime import timedelta
 from glob import glob
 from importlib import import_module
-import subprocess
 from os import makedirs
 from os.path import basename, dirname, join
 
 import cairo
 import moviepy.editor as mpy
 import numpy as np
-import pytz
-from tzlocal import get_localzone
 import yaml
 
-from gpsrenda.fit import FitByTime, GradeInterpolator
-
-def extract_start_time(video_path):
-    # Load the timecode.  XXX: do this with libav python
-    cmd = ["ffprobe",
-           "-v", "quiet",
-           "-print_format", "compact",
-           "-show_entries", "format_tags=creation_time",
-           video_path]
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
-    out = process.stdout.read().decode('UTF-8', 'ignore')
-    creation_time_str = out.split("=")[1].split("Z")[0]
-    creation_time = datetime.strptime(creation_time_str, "%Y-%m-%dT%H:%M:%S.%f")
-    local_tz = get_localzone()
-    localized_creation_time = local_tz.localize(creation_time)
-    utc_creation_time = localized_creation_time.astimezone(pytz.utc).replace(tzinfo=None)
-    print(f"raw creation at {creation_time_str}")
-    # Declare this to be in local time, then convert to UTC
-    print(f"video starts at {utc_creation_time}")
-    return utc_creation_time
-
+from gpsrenda.datasources import FitDataSource
+from gpsrenda.utils import extract_start_time, timestamp_to_seconds
 
 def renda(video_paths, data_path, time_offset, config_path):
-    fit_data = FitByTime(data_path)
-    interpolators = {
-        'cadence':        fit_data.interpolator('cadence'),
-        'heart_rate':     fit_data.interpolator('heart_rate'),
-        'power':          fit_data.interpolator('power'),
-        'speed':          fit_data.interpolator('speed'),
-        'distance':       fit_data.interpolator('distance'),
-        'temperature':    fit_data.interpolator('temperature'),
-        'position_lat':   fit_data.interpolator('position_lat'),
-        'position_long':  fit_data.interpolator('position_long'),
-        'altitude':       fit_data.interpolator('altitude'),
-    }
-    interpolators['grade'] = GradeInterpolator(interpolators['distance'], interpolators['altitude'], delta=2.5)
+    data_source = FitDataSource(data_path)
 
     with open(config_path, 'r') as config_file:
         config_data = yaml.safe_load(config_file)
 
-    gauges = []
-    gauge_module = import_module('gpsrenda.widgets')
-    for gauge_spec in config_data['gauges']:
-        gauge_class = getattr(gauge_module, gauge_spec['type'])
-        gauge_params = gauge_spec.copy()
-        [gauge_params.pop(k) for k in ['type', 'data']]
-        gauge = gauge_class(**gauge_params)
-
-        if hasattr(gauge.__class__, 'prerender') and callable(getattr(gauge.__class__, 'prerender')):
-            fields = gauge_spec['data']
-            pr_fields = fields.copy()
-            if 'grade' in pr_fields:
-                pr_fields.remove('grade')
-
-            gauge.prerender(*[fit_data.fields[f] for f in pr_fields])
-
-        gauges.append(gauge)
-
-    def paint(ctx, w, h, tm):
-        for gauge_spec, gauge in zip(config_data['gauges'], gauges):
-            # Check if a single data type or a list of data sources was given
-            if isinstance(gauge_spec['data'], str):
-                data_srcs = [gauge_spec['data']]
-            else:
-                data_srcs = gauge_spec['data']
-
-            args = [ctx]
-            for src in data_srcs:
-                args.append(interpolators[src].value(tm))
-            gauge.render(*args)
+    widgets = []
+    widget_module = import_module('gpsrenda.widgets.widgets')
+    for widget_spec in config_data['widgets']:
+        widget_type = widget_spec.pop('type')
+        widget_class = getattr(widget_module, widget_type)
+        widget = widget_class(data_source=data_source, **widget_spec)
+        widgets.append(widget)
+        break # just try one for now
 
     for video_path in video_paths:
         clip = mpy.VideoFileClip(video_path)
-        start_t = extract_start_time(video_path)
+        start_t = timestamp_to_seconds(extract_start_time(video_path))
 
         def make_frame(t):
             frame = clip.get_frame(t)
@@ -98,7 +42,8 @@ def renda(video_paths, data_path, time_offset, config_path):
 
             surf = cairo.ImageSurface.create_for_data(argb_frame, cairo.FORMAT_ARGB32, w, h)
             ctx = cairo.Context(surf)
-            paint(ctx, w, h, start_t + timedelta(seconds=t))
+            for widget in widgets:
+                widget.render(ctx, t + start_t - time_offset)
             buf = surf.get_data()
             out_frame = np.ndarray(shape=argb_frame.shape, dtype=argb_frame.dtype, buffer=buf)
             return out_frame[:,:,1:]
@@ -126,6 +71,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     video_paths = glob(args.video_pattern)
-    time_offset = timedelta(seconds=args.time_offset)
+    time_offset = args.time_offset #timedelta(seconds=args.time_offset)
 
     renda(video_paths, args.data_path, -time_offset, args.config_path)
