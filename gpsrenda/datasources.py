@@ -30,38 +30,37 @@ class FitDataSource:
 
         self.grade_seconds = grade_seconds
 
-    def altitude(t):
+    def altitude(self, t):
         return self.interpolators['altitude'](t)
 
-    def cadence(t):
+    def cadence(self, t):
         return self.interpolators['cadence'](t)
 
-    def distance(t):
-        return self.interpolators['distnace'](t)
+    def distance(self, t):
+        return self.interpolators['distance'](t)
 
-    def grade(t):
+    def grade(self, t):
         try:
             result = self.interpolators['grade'](t)
         except KeyError:
             dt = self.grade_seconds
-            # 100 % / 1000 m per km  --> 1/10
-            result = (self.altitude(t + dt) - self.altitude(t - dt)) / (self.distance(t + dt) - self.distance(t - dt)) / 10
+            result = (self.altitude(t + dt) - self.altitude(t - dt)) / (self.distance(t + dt) - self.distance(t - dt)) * 100
         return result
 
-    def heart_rate(t):
+    def heart_rate(self, t):
         return self.interpolators['power'](t)
 
-    def lat(t):
+    def lat(self, t):
         return self.interpolators['position_lat'](t)
 
-    def lon(t):
+    def lon(self, t):
         return self.interpolators['position_long'](t)
 
-    def power(t):
+    def power(self, t):
         return self.interpolators['power'](t)
 
-    def speed(t):
+    def speed(self, t):
         return self.interpolators['speed'](t)
 
-    def temperature(t):
+    def temperature(self, t):
         return self.interpolators['temperature'](t)

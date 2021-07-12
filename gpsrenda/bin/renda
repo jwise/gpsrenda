@@ -28,7 +28,6 @@ def renda(video_paths, data_path, time_offset, config_path):
         widget_class = getattr(widget_module, widget_type)
         widget = widget_class(data_source=data_source, **widget_spec)
         widgets.append(widget)
-        break # just try one for now
 
     for video_path in video_paths:
         clip = mpy.VideoFileClip(video_path)
@@ -38,7 +37,7 @@ def renda(video_paths, data_path, time_offset, config_path):
             frame = clip.get_frame(t)
             h, w = frame.shape[:2]
             alpha = np.zeros((h, w, 1), dtype=frame.dtype)
-            argb_frame = np.concatenate([alpha, frame], axis=-1)
+            argb_frame = np.concatenate([frame, alpha], axis=-1)
 
             surf = cairo.ImageSurface.create_for_data(argb_frame, cairo.FORMAT_ARGB32, w, h)
             ctx = cairo.Context(surf)
@@ -46,7 +45,7 @@ def renda(video_paths, data_path, time_offset, config_path):
                 widget.render(ctx, t + start_t - time_offset)
             buf = surf.get_data()
             out_frame = np.ndarray(shape=argb_frame.shape, dtype=argb_frame.dtype, buffer=buf)
-            return out_frame[:,:,1:]
+            return out_frame[:,:,:3]
 
         composite_clip = mpy.VideoClip(make_frame, duration=clip.duration)
         composite_clip.audio = clip.audio
@@ -73,4 +72,4 @@ if __name__ == "__main__":
     video_paths = glob(args.video_pattern)
     time_offset = args.time_offset #timedelta(seconds=args.time_offset)
 
-    renda(video_paths, args.data_path, -time_offset, args.config_path)
+    renda(video_paths, args.data_path, time_offset, args.config_path)

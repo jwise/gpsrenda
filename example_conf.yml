@@ -5,41 +5,41 @@ widgets:
     y: 985
     units: 'imperial'
 
-  - type: cadence
+  - type: CadenceWidget
     style: GaugeHorizontal
     x: 30
     y: 920
 
-  - type: heart_rate
+  - type: HeartRateWidget
     style: GaugeHorizontal
     x: 30
     y: 855
 
-  - type: power
+  - type: PowerWidget
     style: GaugeHorizontal
     x: 30
     y: 790
 
-  - type: temperature
+  - type: TemperatureWidget
     style: GaugeVertical
     x: 1800
     y: 30
     units: 'imperial'
 
-  - type: distance
+  - type: DistanceWidget
     style: GaugeHorizontal
     x: 30
     y: 30
     w: 1740
     units: 'imperial'
 
-  - type: map
+  - type: MapWidget
     style: GaugeMap
     x: 1490
     y: 790
     h: 195
 
-  - type: elevation
+  - type: ElevationWidget
     style: GaugeElevationMap
     x: 1060
     y: 790

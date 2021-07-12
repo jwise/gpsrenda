@@ -24,3 +24,9 @@ def extract_start_time(video_path):
 def timestamp_to_seconds(timestamp):
     from datetime import datetime
     return (timestamp - datetime.min).total_seconds()
+
+def km_to_mi(km):
+    return km / 1.609
+
+def c_to_f(c):
+    return 9 / 5 * c + 32
