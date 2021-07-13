@@ -1,0 +1,8 @@
+fitparse
+moviepy
+numpy
+pycairo
+pytz
+pyyaml
+scipy
+tzlocal

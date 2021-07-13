@@ -1,0 +1,89 @@
+#!/usr/bin/env python
+import argparse as ap
+from datetime import datetime
+from datetime import timedelta
+from glob import glob
+from importlib import import_module
+from os import makedirs
+from os.path import basename, dirname, join
+
+import cairo
+import moviepy.editor as mpy
+import numpy as np
+import yaml
+
+from gpsrenda.datasources import FitDataSource
+from gpsrenda.utils import extract_start_time, timestamp_to_seconds
+
+def renda(video_paths, data_path, time_offset, config_path, preview):
+    data_source = FitDataSource(data_path)
+
+    with open(config_path, 'r') as config_file:
+        config_data = yaml.safe_load(config_file)
+
+    widgets = []
+    widget_module = import_module('gpsrenda.widgets.widgets')
+    for widget_spec in config_data['widgets']:
+        widget_type = widget_spec.pop('type')
+        widget_class = getattr(widget_module, widget_type+'Widget')
+        widget = widget_class(data_source=data_source, **widget_spec)
+        widgets.append(widget)
+
+    for video_path in video_paths:
+        clip = mpy.VideoFileClip(video_path)
+        start_t = timestamp_to_seconds(extract_start_time(video_path))
+
+        def make_frame(t):
+            frame = clip.get_frame(t)
+            h, w = frame.shape[:2]
+            alpha = np.zeros((h, w, 1), dtype=frame.dtype)
+            argb_frame = np.concatenate([frame[:,:,::-1], alpha], axis=-1)
+
+            surf = cairo.ImageSurface.create_for_data(argb_frame, cairo.FORMAT_ARGB32, w, h)
+            ctx = cairo.Context(surf)
+            for widget in widgets:
+                widget.render(ctx, t + start_t - time_offset)
+            buf = surf.get_data()
+            out_frame = np.ndarray(shape=argb_frame.shape, dtype=argb_frame.dtype, buffer=buf)
+            return out_frame[:,:,:3][:,:,::-1]
+
+        composite_clip = mpy.VideoClip(make_frame, duration=clip.duration)
+
+        out_dir = join(dirname(video_path), 'rendered')
+        try:
+            makedirs(out_dir)
+        except FileExistsError:
+            pass
+
+        if preview:
+            output_file = join(out_dir, basename(video_path).rsplit('.', 1)[0] + ".png")
+            composite_clip.save_frame(output_file)
+        else:
+            composite_clip.audio = clip.audio
+
+            output_file = join(out_dir, basename(video_path))
+
+            composite_clip.write_videofile(
+                output_file,
+                fps=clip.fps,
+                threads=None,
+                ffmpeg_params=[
+                    '-crf', '30',
+                ]
+            )
+
+
+if __name__ == "__main__":
+    parser = ap.ArgumentParser()
+    parser.add_argument('video_pattern', type=str, help="Path or glob pointing to video file(s)")
+    parser.add_argument('data_path', type=str, help="Path to the activity data file")
+    parser.add_argument('config_path', type=str, help="Path to the gauges setup and config file")
+    parser.add_argument('-t', '--time-offset', dest='time_offset', type=float, default=0.,
+                        help="How far ahead (+) or behind (-) are the fit file's internal timestamps compared to the video's")
+    parser.add_argument('-p', '--preview', dest='preview', action='store_true', default=False)
+
+    args = parser.parse_args()
+    video_paths = glob(args.video_pattern)
+    time_offset = args.time_offset #timedelta(seconds=args.time_offset)
+
+    renda(video_paths, args.data_path, time_offset, args.config_path, args.preview)

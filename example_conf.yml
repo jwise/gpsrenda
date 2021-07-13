@@ -1,0 +1,47 @@
+widgets:
+  - type: Speed
+    style: hbar
+    x: 30
+    y: 985
+    units: 'imperial'
+
+  - type: Cadence
+    style: hbar
+    x: 30
+    y: 920
+
+  - type: HeartRate
+    style: hbar
+    x: 30
+    y: 855
+
+  - type: Power
+    style: hbar
+    x: 30
+    y: 790
+
+  - type: Temperature
+    style: vbar
+    x: 1800
+    y: 30
+    units: 'imperial'
+
+  - type: Distance
+    style: hbar
+    x: 30
+    y: 30
+    w: 1740
+    units: 'imperial'
+
+  - type: Map
+    style: map
+    x: 1490
+    y: 790
+    h: 195
+
+  - type: Elevation
+    style: grade
+    x: 1060
+    y: 790
+    h: 195
+    units: 'imperial'
