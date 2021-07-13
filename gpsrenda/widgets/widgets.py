@@ -1,5 +1,6 @@
 from gpsrenda.widgets import *
 from gpsrenda.utils import timestamp_to_seconds, km_to_mi, c_to_f
+from gpsrenda.widgets.utils import latlondist
 
 STYLE_TABLE = {
     'hbar': GaugeHorizontal,
@@ -132,16 +133,46 @@ class DistanceWidget:
 
 
 class MapWidget:
-    def __init__(self, data_source, x, y, h, style='map'):
+    PRIVACY_RANGE = 2000 #m
+
+    def __init__(self, data_source, x, y, h, style='map', privacy=True):
         self.data_source = data_source
+        self.privacy = privacy
         gauge_class = STYLE_TABLE[style]
         gauge = gauge_class(x, y, h=h)
-        # prerender
-        gauge.prerender(self.data_source.fields['position_lat'], self.data_source.fields['position_long'])
         self.gauge = gauge
+        # prerender
+        self.prerender()
 
     def render(self, context, t):
         self.gauge.render(context, self.data_source.lat(t), self.data_source.lon(t))
+
+    def prerender(self):
+        lats, lons = self.data_source.fields['position_lat'], self.data_source.fields['position_long']
+
+        if self.privacy:
+            # Clear start and end points in a 2km radius of the finishing point
+            endpoint = lats[-1][1] / 2**32 * 360, lons[-1][1] / 2**32 * 360
+
+            start_idx = 0
+            end_idx = len(lats) - 1
+
+            for idx, (t, coord) in enumerate(zip(lats, lons)):
+                coord = [coord[i] / 2**32 * 360 for i in range(2)]
+                if latlondist(endpoint, coord) > MapWidget.PRIVACY_RANGE:
+                    start_idx = idx
+                    break
+
+            for inv_idx, (t, coord) in enumerate(zip(lats[:-1], lons[::-1])):
+                coord = [coord[i] / 2**32 * 360 for i in range(2)]
+                if latlondist(endpoint, coord) > MapWidget.PRIVACY_RANGE:
+                    end_idx = len(lats) - inv_idx - 1
+                    break
+
+            lats = lats[start_idx:end_idx]
+            lons = lons[start_idx:end_idx]
+
+        self.gauge.prerender(lats, lons)
 
 
 class ElevationWidget:

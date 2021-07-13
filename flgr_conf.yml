@@ -20,6 +20,7 @@ widgets:
     x: 1505
     y: 870
     h: 195
+    privacy: true
 
   - type: Elevation
     style: grade
