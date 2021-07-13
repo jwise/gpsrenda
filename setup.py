@@ -6,7 +6,7 @@ setup(
     description='Renda gauges onto video from a .fit file',
     author='Joshua Wise, Noah Young',
     packages=['gpsrenda'],
-    scripts=['gpsrenda/bin/renda'],
+    scripts=['gpsrenda/scripts/renda'],
     install_requires=[
         'fitparse',
         'moviepy',

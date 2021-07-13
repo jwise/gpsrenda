@@ -6,6 +6,7 @@ from glob import glob
 from importlib import import_module
 from os import makedirs
 from os.path import basename, dirname, join
+from time import sleep
 
 import cairo
 import moviepy.editor as mpy
@@ -57,7 +58,13 @@ def renda(video_paths, data_path, time_offset, config_path, preview):
 
         if preview:
             output_file = join(out_dir, basename(video_path).rsplit('.', 1)[0] + ".png")
-            composite_clip.save_frame(output_file)
+            composite_clip.resize((960, 640)).preview(fps=15, audio=False)#save_frame(output_file)
+            try:
+                while True:
+                    sleep(0.1)
+            except KeyboardInterrupt:
+                pass
+
         else:
             composite_clip.audio = clip.audio
 
@@ -79,7 +86,7 @@ if __name__ == "__main__":
     parser.add_argument('data_path', type=str, help="Path to the activity data file")
     parser.add_argument('config_path', type=str, help="Path to the gauges setup and config file")
     parser.add_argument('-t', '--time-offset', dest='time_offset', type=float, default=0.,
-                        help="How far ahead (+) or behind (-) are the fit file's internal timestamps compared to the video's")
+                        help="How far ahead (+) or behind (-) is the video compared to the fit file's internal timestamps")
     parser.add_argument('-p', '--preview', dest='preview', action='store_true', default=False)
 
     args = parser.parse_args()
