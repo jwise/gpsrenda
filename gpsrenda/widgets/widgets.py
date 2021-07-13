@@ -46,7 +46,7 @@ class CadenceWidget:
         self.gauge = gauge
 
     def render(self, context, t):
-        value = self.data_source.interpolators['cadence'](t)
+        value = self.data_source.cadence(t)
         self.gauge.render(context, value)
 
 
@@ -60,7 +60,7 @@ class HeartRateWidget:
         self.gauge = gauge
 
     def render(self, context, t):
-        value = self.data_source.interpolators['heart_rate'](t)
+        value = self.data_source.heart_rate(t)
         self.gauge.render(context, value)
 
 
@@ -75,7 +75,7 @@ class PowerWidget:
         self.gauge = gauge
 
     def render(self, context, t):
-        value = self.data_source.interpolators['power'](t)
+        value = self.data_source.power(t)
         self.gauge.render(context, value)
 
 
@@ -99,7 +99,7 @@ class TemperatureWidget:
         self.gauge = gauge
 
     def render(self, context, t):
-        value = self.data_source.interpolators['temperature'](t)
+        value = self.data_source.temperature(t)
         if self.units == 'imperial':
             value = c_to_f(value)
         self.gauge.render(context, value)
@@ -126,7 +126,7 @@ class DistanceWidget:
         self.gauge = gauge
 
     def render(self, context, t):
-        value = self.data_source.interpolators['distance'](t) / 1000
+        value = self.data_source.distance(t) / 1000
         if self.units == 'imperial':
             value = km_to_mi(value)
         self.gauge.render(context, value)

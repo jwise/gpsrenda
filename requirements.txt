@@ -1,5 +1,8 @@
+fitparse
+moviepy
+numpy
 pycairo
-PyGObject
 pytz
-tzlocal
 pyyaml
+scipy
+tzlocal
