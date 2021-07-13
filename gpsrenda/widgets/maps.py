@@ -5,7 +5,7 @@ from .utils import *
 from .text import Text
 
 class GaugeMap:
-    def __init__(self, x, y, w = 400, h = 400, line_width = 5, dot_size = 15, units=None):
+    def __init__(self, x, y, w = 400, h = 400, line_width = 5, dot_size = 15):
         self.x = x
         self.y = y
         self.w = w
@@ -114,7 +114,7 @@ class GaugeMap:
         ctx.paint_with_alpha(0.9)
 
 class GaugeElevationMap:
-    def __init__(self, x, y, w = 400, h = 400, line_width = 5, dot_size = 15, dist_scale = 10, with_grade = True, with_elev = True, units=None):
+    def __init__(self, x, y, w = 400, h = 400, line_width = 5, dot_size = 15, dist_scale = 10, with_grade = True, with_elev = True):
         self.x = x
         self.y = y
         self.w = w

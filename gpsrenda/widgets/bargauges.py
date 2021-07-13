@@ -90,7 +90,7 @@ class GaugeHorizontal:
         ctx.paint_with_alpha(0.9)
 
 class GaugeVertical:
-    def __init__(self, x, y, w = 80, h = 400, label = '{val:.0f}°F', dummy_label = '100°F', data_range = [(70, (1.0, 0, 0)), (100, (1.0, 0, 0))], units=None):
+    def __init__(self, x, y, w = 80, h = 400, label = '{val:.0f}°F', dummy_label = '100°F', data_range = [(70, (1.0, 0, 0)), (100, (1.0, 0, 0))]):
         self.x = x
         self.y = y
         self.w = w

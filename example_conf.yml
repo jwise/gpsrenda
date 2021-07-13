@@ -1,4 +1,4 @@
-s:
+widgets:
   - type: Speed
     style: hbar
     x: 30
@@ -21,7 +21,7 @@ s:
     y: 790
 
   - type: Temperature
-    style: GaugeVertical
+    style: vbar
     x: 1800
     y: 30
     units: 'imperial'
