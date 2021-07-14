@@ -25,6 +25,10 @@ def timestamp_to_seconds(timestamp):
     from datetime import datetime
     return (timestamp - datetime.min).total_seconds()
 
+def seconds_to_timestamp(seconds):
+    from datetime import datetime, timedelta
+    return datetime.min + timedelta(seconds=seconds)
+
 def km_to_mi(km):
     return km / 1.609
 

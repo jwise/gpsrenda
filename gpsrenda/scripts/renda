@@ -1,22 +1,27 @@
 #!/usr/bin/env python
-import argparse as ap
-from datetime import datetime
-from datetime import timedelta
-from glob import glob
-from importlib import import_module
-from os import makedirs
-from os.path import basename, dirname, join
-from time import sleep
-
 import cairo
 import moviepy.editor as mpy
 import numpy as np
 import yaml
 
+import argparse as ap
+from datetime import datetime
+from datetime import timedelta
+from glob import glob
+from importlib import import_module
+import logging
+from os import makedirs
+from os.path import basename, dirname, join
+from time import sleep
+
 from gpsrenda.datasources import FitDataSource
 from gpsrenda.utils import extract_start_time, timestamp_to_seconds
 
 def renda(video_paths, data_path, time_offset, config_path, preview):
+    logger = logging.getLogger(__file__)
+    logger.setLevel(logging.DEBUG)
+    logger.debug("Begin")
+
     data_source = FitDataSource(data_path)
 
     with open(config_path, 'r') as config_file:

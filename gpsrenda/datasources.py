@@ -2,9 +2,13 @@ import fitparse
 import numpy as np
 from scipy.interpolate import interp1d
 
-from datetime import datetime
+from datetime import datetime, timedelta
+import logging
 
-from gpsrenda.utils import timestamp_to_seconds
+from gpsrenda.utils import timestamp_to_seconds, seconds_to_timestamp
+
+
+logger = logging.getLogger(__file__)
 
 
 class FitDataSource:
@@ -24,9 +28,22 @@ class FitDataSource:
 
         self._interpolators = {}
         for name, values in self.fields.items():
-            val_array = np.array(values)
-            x, y = val_array[:,0], val_array[:,1]
-            self._interpolators[name] = interp1d(x, y, kind='linear', assume_sorted=True)
+            val_array = np.array(values, dtype=np.float)
+            # It is possible for the fit file to contain a few or all NaNs due to missing / corrupted data
+            # Drop nans before interpolation
+            nans = np.isnan(val_array[:,1])
+            if np.all(nans):
+                logger.warn(f"{name} data contained only NaNs")
+            else:
+                nan_idx, = np.where(nans)
+                if len(nan_idx) > 0:
+                    times_str = ", ".join([str(timedelta(seconds=val_array[idx,0] - val_array[0,0])) for idx in nan_idx[:10]])
+                    if len(nan_idx) > 10:
+                        times_str += ", ..."
+                    logger.warn(f"Found {len(nan_idx):d} NaN(s) in {name} data at {times_str:s}")
+                not_nan_idx, = np.where(np.logical_not(nans))
+                x, y = val_array[not_nan_idx,0], val_array[not_nan_idx,1]
+                self._interpolators[name] = interp1d(x, y, kind='linear', assume_sorted=True)
 
         self.grade_seconds = grade_seconds
 
@@ -44,7 +61,11 @@ class FitDataSource:
             result = self._interpolators['grade'](t)
         except KeyError:
             dt = self.grade_seconds
-            result = (self.altitude(t + dt) - self.altitude(t - dt)) / (self.distance(t + dt) - self.distance(t - dt)) * 100
+            den = self.distance(t + dt) - self.distance(t - dt)
+            if den == 0:
+                result = 0.0
+            else:
+                result = (self.altitude(t + dt) - self.altitude(t - dt)) / den * 100
         return result
 
     def heart_rate(self, t):
