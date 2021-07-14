@@ -43,7 +43,7 @@ class FitDataSource:
                     logger.warn(f"Found {len(nan_idx):d} NaN(s) in {name} data at {times_str:s}")
                 not_nan_idx, = np.where(np.logical_not(nans))
                 x, y = val_array[not_nan_idx,0], val_array[not_nan_idx,1]
-                self._interpolators[name] = interp1d(x, y, kind='linear', assume_sorted=True)
+                self._interpolators[name] = interp1d(x, y, kind='linear', bounds_error=False, assume_sorted=True)
 
         self.grade_seconds = grade_seconds
 

@@ -1,5 +1,7 @@
-import cairo
 import math
+
+import cairo
+import numpy as np
 
 from .utils import *
 from ..utils import *
@@ -200,7 +202,7 @@ class GaugeElevationMap:
         print(f"... rendered {npts} points ...")
 
     def render(self, ctx, dist, elev, grade):
-        if dist is None or elev is None or grade is None:
+        if dist is None or elev is None:
             ctx.push_group()
             ctx.rectangle(self.x, self.y, self.w, self.h)
             ctx.set_source(self.bgpattern)
@@ -242,7 +244,7 @@ class GaugeElevationMap:
         ctx.pop_group_to_source()
         ctx.paint_with_alpha(0.9)
 
-        if self.grade_text:
+        if self.grade_text and grade is not False and not np.isnan(grade):
             grade_hue = lerp(-5, 0.5, 10, 0.0, grade)
             self.grade_text.color = colorsys.hsv_to_rgb(grade_hue, 0.4, 0.9)
             self.grade_text.render(ctx, f"{grade:.1f}%")
