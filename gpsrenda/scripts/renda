@@ -87,7 +87,7 @@ def renda(video_paths, data_path, time_offset, config_path, preview):
 
 if __name__ == "__main__":
     parser = ap.ArgumentParser()
-    parser.add_argument('video_pattern', type=str, help="Path or glob pointing to video file(s)")
+    parser.add_argument('video_pattern', type=str, nargs='+', help="Path or glob pointing to video file(s)")
     parser.add_argument('data_path', type=str, help="Path to the activity data file")
     parser.add_argument('config_path', type=str, help="Path to the gauges setup and config file")
     parser.add_argument('-t', '--time-offset', dest='time_offset', type=float, default=0.,
@@ -95,7 +95,7 @@ if __name__ == "__main__":
     parser.add_argument('-p', '--preview', dest='preview', action='store_true', default=False)
 
     args = parser.parse_args()
-    video_paths = glob(args.video_pattern)
+    video_paths = sum([glob(pattern) for pattern in args.video_pattern], [])
     time_offset = args.time_offset #timedelta(seconds=args.time_offset)
 
     renda(video_paths, args.data_path, time_offset, args.config_path, args.preview)
