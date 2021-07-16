@@ -180,7 +180,7 @@ class ElevationWidget:
         self.data_source = data_source
         self.units = units
         gauge_class = STYLE_TABLE[style]
-        gauge = gauge_class(x, y, h=h, dist_scale=10 * 1000)
+        gauge = gauge_class(x, y, h=h, dist_scale=10 * 1000, units=units)
         # prerender
         gauge.prerender(self.data_source.fields['distance'], self.data_source.fields['altitude'])
         self.gauge = gauge

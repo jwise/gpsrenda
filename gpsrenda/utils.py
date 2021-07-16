@@ -30,3 +30,6 @@ def km_to_mi(km):
 
 def c_to_f(c):
     return 9 / 5 * c + 32
+
+def m_to_ft(m):
+    return m * 3.2808399

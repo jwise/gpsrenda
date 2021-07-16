@@ -2,6 +2,7 @@ import cairo
 import math
 
 from .utils import *
+from ..utils import *
 from .text import Text
 
 class GaugeMap:
@@ -114,7 +115,7 @@ class GaugeMap:
         ctx.paint_with_alpha(0.9)
 
 class GaugeElevationMap:
-    def __init__(self, x, y, w = 400, h = 400, line_width = 5, dot_size = 15, dist_scale = 10, with_grade = True, with_elev = True):
+    def __init__(self, x, y, w = 400, h = 400, line_width = 5, dot_size = 15, dist_scale = 10, with_grade = True, with_elev = True, units = 'metric'):
         self.x = x
         self.y = y
         self.w = w
@@ -148,6 +149,8 @@ class GaugeElevationMap:
                                   dropshadow = 0,
                                   halign = Text.HALIGN_CENTER, valign = Text.VALIGN_TOP,
                                   color = (0.8, 0.8, 0.8))
+
+        self.units = units
 
     def prerender(self, distdata, elevdata):
         print("... computing elevmap bounds ...")
@@ -244,11 +247,11 @@ class GaugeElevationMap:
             self.grade_text.color = colorsys.hsv_to_rgb(grade_hue, 0.4, 0.9)
             self.grade_text.render(ctx, f"{grade:.1f}%")
 
-        elev_ft = elev * 3.2808399
+        elev_ft = m_to_ft(elev)
         if self.elev_text:
             self.elev_text.x = x
             self.elev_text.y = y + self.dot_size * 1.3
-            self.elev_text.render(ctx, f"{elev_ft:.0f}ft")
+            self.elev_text.render(ctx, f"{elev_ft:.0f}ft" if self.units == 'imperial' else f"{elev:.0f}m")
 
         ctx.pop_group_to_source()
         ctx.paint_with_alpha(0.9)
