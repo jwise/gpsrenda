@@ -1,5 +1,8 @@
 import colorsys
+
 import cairo
+import numpy
+
 from .utils import *
 from .text import Text
 
@@ -43,7 +46,7 @@ class GaugeHorizontal:
         self.bgpattern = cairo.SolidPattern(0.2, 0.2, 0.2, 0.9)
 
     def render(self, ctx, val):
-        if val is None:
+        if (val is None) or np.isnan(val):
             ctx.push_group()
             ctx.rectangle(self.x, self.y, self.w, self.h)
             ctx.set_source(self.bgpattern)
@@ -118,7 +121,7 @@ class GaugeVertical:
         self.bgpattern = cairo.SolidPattern(0.2, 0.2, 0.2, 0.9)
 
     def render(self, ctx, val):
-        if val is None:
+        if (val is None) or np.isnan(val):
             ctx.push_group()
             ctx.rectangle(self.x, self.y, self.w, self.h)
             ctx.set_source(self.bgpattern)
