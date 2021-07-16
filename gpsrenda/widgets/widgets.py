@@ -187,6 +187,4 @@ class ElevationWidget:
 
     def render(self, context, t):
         d = self.data_source.distance(t)
-        if self.units == 'imperial':
-            d = km_to_mi(d)
         self.gauge.render(context, d, self.data_source.altitude(t), self.data_source.grade(t))
