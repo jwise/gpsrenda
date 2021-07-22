@@ -10,16 +10,29 @@ widgets:
     x: 15
     y: 870
     units: 'imperial'
+    data_range:
+      0:  [0.2, 0.0, 0.6]
+      20: [0.0, 0.6, 0.0]
+      40: [0.8, 0.0, 0.0]
 
   - type: HeartRate
     style: hbar
     x: 15
     y: 935
+    data_range:
+      100: [0.2, 0.0, 0.6]
+      200: [0.8, 0.0, 0.0]
 
   - type: Power
     style: hbar
     x: 15
     y: 1000
+    data_range:
+      0:   [0.0, 0.6, 0.0]
+      200: [0.0, 0.6, 0.0]
+      800: [0.8, 0.0, 0.0]
+    markers:
+      FTP: 286
 
   - type: Map
     style: map
