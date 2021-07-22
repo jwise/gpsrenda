@@ -22,10 +22,10 @@ def renda(video_paths, data_path, time_offset, config_path, preview):
     logger.setLevel(logging.DEBUG)
     logger.debug("Begin")
 
-    data_source = FitDataSource(data_path)
-
     with open(config_path, 'r') as config_file:
         config_data = yaml.safe_load(config_file)
+
+    data_source = FitDataSource(data_path, config=config_data['data'])
 
     widgets = []
     widget_module = import_module('gpsrenda.widgets.widgets')
@@ -78,6 +78,7 @@ def renda(video_paths, data_path, time_offset, config_path, preview):
             composite_clip.write_videofile(
                 output_file,
                 fps=clip.fps,
+                audio_codec='aac',
                 threads=None,
                 ffmpeg_params=[
                     '-crf', '30',

@@ -37,3 +37,26 @@ def c_to_f(c):
 
 def m_to_ft(m):
     return m * 3.2808399
+
+def merge_dict(dct, merge_dct):
+    """Recursive dict merge. Inspired by ``dict.update()``, instead of
+    updating only top-level keys, dict_merge recurses down into dicts nested
+    to an arbitrary depth, updating keys. The ``merge_dct`` is merged into
+    ``dct``.
+
+    Args:
+        dct: dict onto which the merge is executed
+        merge_dct: dct merged into dct
+
+    Returns dct after the merge.
+    """
+    import collections
+
+    for k, v in merge_dct.items():
+        if (k in dct and isinstance(dct[k], dict)
+                and isinstance(merge_dct[k], collections.Mapping)):
+            merge_dict(dct[k], merge_dct[k])
+        else:
+            dct[k] = merge_dct[k]
+
+    return dct
