@@ -6,8 +6,13 @@ import numpy
 from .utils import *
 from .text import Text
 
+
+DEFAULT_RGB = (0.4, 0.4, 1.0)
+
+
 class GaugeHorizontal:
-    def __init__(self, x, y, w = 600, h = 60, label = '{val:.0f}', dummy_label = '99.9', caption = '', dummy_caption = 'mph', data_range = [(0, (1.0, 0, 0)), (100, (1.0, 0, 0))]):
+    def __init__(self, x, y, w=600, h=60, label='{val:.0f}', dummy_label='99.9', caption='', dummy_caption='mph',
+                 data_range=[0, 100], gradient=False):
         self.x = x
         self.y = y
         self.w = w
@@ -36,12 +41,19 @@ class GaugeHorizontal:
 
         self.gaugew = self.label_text.x - self.label_text.measure(dummy_label).x_advance - self.padding * 3 - self.x
 
-        self.min = data_range[0][0]
-        self.max = data_range[-1][0]
+        if isinstance(data_range, dict):
+            self.data_range = [(k, v) for (k, v) in data_range.items()]
+        elif isinstance(data_range, list):
+            self.data_range = [(data_range[0], DEFAULT_RGB),
+                               (data_range[-1], DEFAULT_RGB)]
+        else:
+            raise ValueError("`data_range` must be a dictionary or list")
 
-        self.data_range = data_range
+        self.min = self.data_range[0][0]
+        self.max = self.data_range[-1][0]
 
-        self.gradient = HSVGradient(self.x + self.padding, 0, self.x + self.padding + self.gaugew, 0, data_range)
+        self.show_gradient = gradient
+        self.gradient = HSVGradient(self.x + self.padding, 0, self.x + self.padding + self.gaugew, 0, self.data_range)
 
         self.bgpattern = cairo.SolidPattern(0.2, 0.2, 0.2, 0.9)
 
@@ -63,17 +75,15 @@ class GaugeHorizontal:
         ctx.fill()
 
         # paint the gauge bar itself
-        ctx.rectangle(self.x + self.padding, self.y + self.padding, lerp(self.min, 0, self.max, self.gaugew, val), self.h - self.padding * 2)
-        ctx.set_source(self.gradient.pattern)
-        ctx.fill()
-
         cur_rgb = self.gradient.lookup(val)
         cur_hsv = colorsys.rgb_to_hsv(*cur_rgb)
-
-        # paint a semitransparent overlay on the gauge bar to colorize it
-        # for where we are in the scale
         ctx.rectangle(self.x + self.padding, self.y + self.padding, lerp(self.min, 0, self.max, self.gaugew, val), self.h - self.padding * 2)
-        ctx.set_source_rgba(cur_rgb[0], cur_rgb[1], cur_rgb[2], 0.4)
+
+        if self.show_gradient:
+            ctx.set_source(self.gradient.pattern)
+        else:
+            ctx.set_source_rgb(*cur_rgb)
+
         ctx.fill()
 
         # paint the surround for the gauge cluster
@@ -93,7 +103,8 @@ class GaugeHorizontal:
         ctx.paint_with_alpha(0.9)
 
 class GaugeVertical:
-    def __init__(self, x, y, w = 80, h = 400, label = '{val:.0f}°F', dummy_label = '100°F', data_range = [(70, (1.0, 0, 0)), (100, (1.0, 0, 0))]):
+    def __init__(self, x, y, w=80, h=400, label='{val:.0f}°F', dummy_label='100°F', data_range=[0, 100],
+                 gradient=False):
         self.x = x
         self.y = y
         self.w = w
@@ -111,12 +122,19 @@ class GaugeVertical:
 
         self.gaugeh = self.h - self.label_text.measure(dummy_label).height - self.padding * 3
 
-        self.min = data_range[0][0]
-        self.max = data_range[-1][0]
+        if isinstance(data_range, dict):
+            self.data_range = [(k, v) for (k, v) in date_range.items()]
+        elif isinstance(data_range, list):
+            self.data_range = [(data_range[0], DEFAULT_RGB),
+                               (data_range[-1], DEFAULT_RGB)]
+        else:
+            raise ValueError("`data_range` must be a dictionary or list")
 
-        self.data_range = data_range
+        self.min = self.data_range[0][0]
+        self.max = self.data_range[-1][0]
 
-        self.gradient = HSVGradient(0, self.y + self.padding + self.gaugeh, 0, self.y + self.padding, data_range)
+        self.show_gradient = gradient
+        self.gradient = HSVGradient(0, self.y + self.padding + self.gaugeh, 0, self.y + self.padding, self.data_range)
 
         self.bgpattern = cairo.SolidPattern(0.2, 0.2, 0.2, 0.9)
 
@@ -138,17 +156,13 @@ class GaugeVertical:
         ctx.fill()
 
         # paint the gauge bar itself
-        ctx.rectangle(self.x + self.padding, self.y + self.padding + self.gaugeh, self.w - self.padding * 2, -lerp(self.min, 0, self.max, self.gaugeh, val))
-        ctx.set_source(self.gradient.pattern)
-        ctx.fill()
-
         cur_rgb = self.gradient.lookup(val)
         cur_hsv = colorsys.rgb_to_hsv(*cur_rgb)
-
-        # paint a semitransparent overlay on the gauge bar to colorize it
-        # for where we are in the scale
         ctx.rectangle(self.x + self.padding, self.y + self.padding + self.gaugeh, self.w - self.padding * 2, -lerp(self.min, 0, self.max, self.gaugeh, val))
-        ctx.set_source_rgba(cur_rgb[0], cur_rgb[1], cur_rgb[2], 0.4)
+        if self.show_gradient:
+            ctx.set_source(self.gradient.pattern)
+        else:
+            ctx.set_source_rgb(*cur_rgb)
         ctx.fill()
 
         # paint the surround for the gauge cluster

@@ -10,22 +10,13 @@ STYLE_TABLE = {
 }
 
 class SpeedWidget:
-    def __init__(self, data_source, x, y, style='hbar', units='metric'):
+    def __init__(self, data_source, x, y, style='hbar', units='metric', data_range=[0, 50]):
         self.data_source = data_source
         self.units = units
         gauge_class = STYLE_TABLE[style]
         caption = 'mph' if units == 'imperial' else 'kph'
 
-        colors = [(0, [0.2, 0.0, 0.6]),
-                  (25, [0.0, 0.6, 0.0]),
-                  (50, [0.8, 0.0, 0.0])]
-
-        if units == 'imperial':
-            for idx, (val, rgb) in enumerate(colors):
-                colors[idx] = (km_to_mi(val), rgb)
-
-        gauge = gauge_class(x, y, label="{val:.1f}", dummy_label="99.9", caption=caption,
-                            data_range=colors)
+        gauge = gauge_class(x, y, label="{val:.1f}", dummy_label="99.9", caption=caption, data_range=data_range)
         self.gauge = gauge
 
     def render(self, context, t):
@@ -36,13 +27,10 @@ class SpeedWidget:
 
 
 class CadenceWidget:
-    def __init__(self, data_source, x, y, style='hbar'):
+    def __init__(self, data_source, x, y, style='hbar', data_range=[60, 120]):
         self.data_source = data_source
         gauge_class = STYLE_TABLE[style]
-        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="999", caption="rpm",
-                            data_range=[(60, [0.8, 0.0, 0.0]),
-                                        (90, [0.0, 0.6, 0.0]),
-                                        (120, [0.8, 0.0, 0.0])])
+        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="999", caption="rpm", data_range=data_range)
         self.gauge = gauge
 
     def render(self, context, t):
@@ -51,12 +39,10 @@ class CadenceWidget:
 
 
 class HeartRateWidget:
-    def __init__(self, data_source, x, y, style='hbar'):
+    def __init__(self, data_source, x, y, style='hbar', data_range=[40, 220]):
         self.data_source = data_source
         gauge_class = STYLE_TABLE[style]
-        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="999", caption="bpm",
-                            data_range=[(100, [0.2, 0.0, 0.6]),
-                                        (200, [0.8, 0.0, 0.0])])
+        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="999", caption="bpm", data_range=data_range)
         self.gauge = gauge
 
     def render(self, context, t):
@@ -65,13 +51,11 @@ class HeartRateWidget:
 
 
 class PowerWidget:
-    def __init__(self, data_source, x, y, style='hbar'):
+    def __init__(self, data_source, x, y, style='hbar', data_range=[0, 1000]):
         self.data_source = data_source
         gauge_class = STYLE_TABLE[style]
-        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="999", caption="W",
-                            data_range=[(0, (0, 0.6, 0)),
-                                        (300, (0.2, 0.6, 0.0)),
-                                        (800, (0.8, 0.0, 0.0))])
+        markers = {'ftp'}
+        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="999", caption="W", data_range=data_range)
         self.gauge = gauge
 
     def render(self, context, t):
@@ -80,22 +64,17 @@ class PowerWidget:
 
 
 class TemperatureWidget:
-    def __init__(self, data_source, x, y, style='vbar', units='metric'):
+    def __init__(self, data_source, x, y, style='vbar', units='metric', data_range=[0, 100]):
         self.data_source = data_source
         self.units = units
         gauge_class = STYLE_TABLE[style]
         suffix = '°F' if units == 'imperial' else '°C'
 
-        colors = [(5, (0.6, 0, 0)),
-                  (20, (0.0, 0.6, 0.0)),
-                  (35, (0.0, 0.0, 1.0))]
-
         if units == 'imperial':
             for idx, (val, rgb) in enumerate(colors):
                 colors[idx] = (c_to_f(val), rgb)
 
-        gauge = gauge_class(x, y, label="{val:.0f}"+suffix, dummy_label="0.0",
-                            data_range=colors)
+        gauge = gauge_class(x, y, label="{val:.0f}"+suffix, dummy_label="0.0", data_range=data_range)
         self.gauge = gauge
 
     def render(self, context, t):
@@ -112,17 +91,15 @@ class DistanceWidget:
         gauge_class = STYLE_TABLE[style]
         suffix = 'mi' if units == 'imperial' else 'km'
 
-        total_distance = data_source.fields['distance'][-1][1]
+        total_distance = data_source.fields['distance'][-1][1] / 1000
 
         if units == 'imperial':
-            total_distance = km_to_mi(total_distance) / 1000
+            total_distance = km_to_mi(total_distance)
 
-            colors = [(0, [0.75, 0.75, 0.75]),
-                      (total_distance, [0.75, 0.75, 0.75])]
-
+        data_range = [0, total_distance]
 
         gauge = gauge_class(x, y, w=w, label="{val:.1f}", dummy_label="0.0", caption=f" / {total_distance:.1f} {suffix}",
-                            data_range=colors)
+                            data_range=data_range)
         self.gauge = gauge
 
     def render(self, context, t):
