@@ -5,14 +5,26 @@ from scipy.interpolate import interp1d
 from datetime import datetime, timedelta
 import logging
 
-from gpsrenda.utils import timestamp_to_seconds, seconds_to_timestamp
+from gpsrenda.utils import timestamp_to_seconds, seconds_to_timestamp, merge_dict
 
 
 logger = logging.getLogger(__file__)
 
 
+DEFAULT_DATA_CONFIG = {
+    'altitude': {
+        'lag': 0
+    },
+    'grade': {
+        'averaging_time': 2
+    }
+}
+
+
 class FitDataSource:
-    def __init__(self, file_path, grade_seconds=1):
+    def __init__(self, file_path, config):
+        self.config = merge_dict(DEFAULT_DATA_CONFIG, config)
+
         fit_file = fitparse.FitFile(file_path)
         messages = list(fit_file.get_messages('record'))
 
@@ -45,10 +57,8 @@ class FitDataSource:
                 x, y = val_array[not_nan_idx,0], val_array[not_nan_idx,1]
                 self._interpolators[name] = interp1d(x, y, kind='linear', bounds_error=False, assume_sorted=True)
 
-        self.grade_seconds = grade_seconds
-
     def altitude(self, t):
-        return self._interpolators['altitude'](t)
+        return self._interpolators['altitude'](t + self.config['altitude']['lag'])
 
     def cadence(self, t):
         return self._interpolators['cadence'](t)
@@ -60,7 +70,7 @@ class FitDataSource:
         try:
             result = self._interpolators['grade'](t)
         except KeyError:
-            dt = self.grade_seconds
+            dt = self.config['grade']['averaging_time'] / 2
             den = self.distance(t + dt) - self.distance(t - dt)
             if den == 0:
                 result = 0.0

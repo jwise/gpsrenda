@@ -1,3 +1,9 @@
+data:
+  altitude:
+    lag: 0
+  grade:
+    averaging_time: 2
+
 widgets:
   - type: Speed
     style: hbar

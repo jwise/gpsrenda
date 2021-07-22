@@ -1,28 +1,39 @@
 # gpsrenda: simple open-source GPS statistics video overlay renderer
 
-`gpsrenda` is a video overlay renderer that takes statistics from a FIT
-file, and renders gauges on top of video captured by a GoPro.  It uses Cairo
-to do all its graphics rendering, and Gstreamer as a video backend.  It takes
-its configuration programmatically, and is designed to be (relatively)
-simple, hackable, and extensible (at least, if you think that using Python
-as a configuration language without having a GUI at all is simple).  It
-competes with DashWare and Garmin VIRB (with the hope that it's easier to
-automate than DashWare, and more flexible than VIRB).
+`gpsrenda` is a video overlay renderer that takes statistics from a FIT file, and renders gauges on top of video
+captured during the activity using e.g. a GoPro. It uses Cairo to do all its graphics rendering, and `moviepy` as a
+video backend. It is designed to be (relatively) simple, hackable, and extensible. It competes with DashWare and Garmin
+VIRB (with the hope that it's easier to automate than DashWare, and more turnkey than VIRB).
 
-I have it tested with a GoPro Hero 8 Black, and a Wahoo ELEMNT BOLT.  To get
-the best use of it, hit the start button on the GPS *with the GoPro
-running*, and then use the GPS start sound in the video to synchronize the
-time offset between the GPS data and the video.
+## Installation
 
-I've successfully fed the output to `kdenlive`, which is extremely slow at
-rendering... I'll try other non-linear video editors next.
+```sh
+git clone git@github.com:jwise/gpsrenda.git
+cd gpsrenda
+pip install .
+```
 
-## Setup
+`gpsrenda` should work with system, pyenv/pip, and Anaconda-based Python installations. On Windows only Anaconda has
+been tested due to `cairo` being tricky on Windows systems.
 
-You need a handful of Python packages installed, including `cairo`,
-`fitparse`, and the PyGObject bridge for Gst (on my Ubuntu machine, the
-package is called `python3-gst-1.0`).  For a usage example, check out
-`sample.py`, which generates output that looks as below:
+## Usage
+
+`renda --help` for full usage information. Point to the example config file at `example_config.yml` for an example that
+should look roughly like this:
 
 ![an example image generated with gpsrenda](sample.jpg)
 
+## Synchronization
+
+One trick you may find helpful is to hit the start button on the GPS *with the GoPro running*, and then use the GPS
+start sound in the video to synchronize the time offset between the GPS data and the video. Alternatively, you can use
+the `--preview` flag to render a preview with no time offset, and infer the time offset from the overlay. Finally, you
+may even find it helpful to use Virb's excellent map-based side-by-side synchronization tool to determine the time
+offset before doing your actual overlay here.
+
+You can then use the `-t` flag to provide the time offset to the renderer.
+
+## Hardware
+
+We have tested `gpsrenda` with a GoPro Hero 8 Black + Wahoo ELEMNT BOLT as well as a GoPro Hero 7 Silver + Garmin Edge
+530.
