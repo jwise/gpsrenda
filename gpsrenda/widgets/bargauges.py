@@ -12,7 +12,7 @@ DEFAULT_RGB = (0.4, 0.4, 1.0)
 
 class GaugeHorizontal:
     def __init__(self, x, y, w=600, h=60, label='{val:.0f}', dummy_label='99.9', caption='', dummy_caption='mph',
-                 data_range=[0, 100], gradient=False):
+                 data_range=[0, 100], gradient=False, markers={}):
         self.x = x
         self.y = y
         self.w = w
@@ -57,6 +57,8 @@ class GaugeHorizontal:
 
         self.bgpattern = cairo.SolidPattern(0.2, 0.2, 0.2, 0.9)
 
+        self.markers = markers
+
     def render(self, ctx, val):
         if (val is None) or np.isnan(val):
             ctx.push_group()
@@ -77,7 +79,8 @@ class GaugeHorizontal:
         # paint the gauge bar itself
         cur_rgb = self.gradient.lookup(val)
         cur_hsv = colorsys.rgb_to_hsv(*cur_rgb)
-        ctx.rectangle(self.x + self.padding, self.y + self.padding, lerp(self.min, 0, self.max, self.gaugew, val), self.h - self.padding * 2)
+        ctx.rectangle(self.x + self.padding, self.y + self.padding, lerp(self.min, 0, self.max, self.gaugew, val),
+                      self.h - self.padding * 2)
 
         if self.show_gradient:
             ctx.set_source(self.gradient.pattern)
@@ -85,6 +88,23 @@ class GaugeHorizontal:
             ctx.set_source_rgb(*cur_rgb)
 
         ctx.fill()
+
+        # paint any markers
+        for marker_name, marker_value in self.markers.items():
+            # line
+            ctx.set_source_rgb(1.0, 1.0, 1.0)
+            ctx.set_line_width(4)
+            xpos = lerp(self.min, 0, self.max, self.gaugew, marker_value)
+            ctx.move_to(xpos, self.y + self.padding)
+            ctx.line_to(xpos, self.y + self.h - self.padding)
+            ctx.stroke()
+
+            # text
+            marker_text = Text(xpos + 8,
+                               self.y + self.h / 2,
+                               face=Text.DEFAULT_MONO_FONT, size=self.h * 0.5, dropshadow=0, halign=Text.HALIGN_LEFT,
+                               valign=Text.VALIGN_CENTER)
+            marker_text.render(ctx, marker_name)
 
         # paint the surround for the gauge cluster
         ctx.rectangle(self.x + self.padding, self.y + self.padding, self.gaugew, self.h - self.padding * 2)

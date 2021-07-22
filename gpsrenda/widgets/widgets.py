@@ -51,11 +51,11 @@ class HeartRateWidget:
 
 
 class PowerWidget:
-    def __init__(self, data_source, x, y, style='hbar', data_range=[0, 1000]):
+    def __init__(self, data_source, x, y, style='hbar', data_range=[0, 1000], markers={}):
         self.data_source = data_source
         gauge_class = STYLE_TABLE[style]
-        markers = {'ftp'}
-        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="999", caption="W", data_range=data_range)
+        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="999", caption="W", data_range=data_range,
+                            markers=markers)
         self.gauge = gauge
 
     def render(self, context, t):
