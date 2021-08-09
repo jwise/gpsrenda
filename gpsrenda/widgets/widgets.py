@@ -114,11 +114,11 @@ class DistanceWidget:
 class MapWidget:
     PRIVACY_RANGE = 2000 #m
 
-    def __init__(self, data_source, x, y, h, style='map', privacy=True):
+    def __init__(self, data_source, x, y, h, w=300, style='map', privacy=True):
         self.data_source = data_source
         self.privacy = privacy
         gauge_class = STYLE_TABLE[style]
-        gauge = gauge_class(x, y, h=h)
+        gauge = gauge_class(x, y, h=h, w=w)
         self.gauge = gauge
         # prerender
         self.prerender()
