@@ -1,5 +1,5 @@
 from gpsrenda.widgets import *
-from gpsrenda.utils import timestamp_to_seconds, km_to_mi, c_to_f
+from gpsrenda.utils import timestamp_to_seconds, seconds_to_timestamp, km_to_mi, c_to_f
 from gpsrenda.widgets.utils import latlondist
 
 STYLE_TABLE = {
@@ -7,6 +7,7 @@ STYLE_TABLE = {
     'vbar': GaugeVertical,
     'map': GaugeMap,
     'grade': GaugeElevationMap,
+    'text': GaugeText,
 }
 
 class SpeedWidget:
@@ -167,3 +168,17 @@ class ElevationWidget:
     def render(self, context, t):
         d = self.data_source.distance(t)
         self.gauge.render(context, d, self.data_source.altitude(t), self.data_source.grade(t))
+
+
+class TimeWidget:
+    def __init__(self, data_source, x, y, w, style='text'):
+        import tzlocal
+
+        self.data_source = data_source
+        gauge_class = STYLE_TABLE[style]
+        self.gauge = gauge_class(x, y, w=w, dummy_label = '00:00')
+        self.tz = tzlocal.get_localzone()
+
+    def render(self, context, t):
+        ts = seconds_to_timestamp(t).astimezone(self.tz)
+        self.gauge.render(context, f"{ts.hour:02}:{ts.minute:02}")

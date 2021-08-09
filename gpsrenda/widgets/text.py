@@ -73,13 +73,13 @@ class Text:
         ctx.move_to(x, y)
         ctx.show_text(text)
 
-class GaugeTime:
-    def __init__(self, x, y, w = None, h = 60):
+class GaugeText:
+    def __init__(self, x, y, w = None, h = 60, dummy_label = "00:00"):
         self.x = x
         self.y = y
         self.w = w
         self.h = h
-        self.dummy_label = "00:00"
+        self.dummy_label = dummy_label
 
         self.padding = h / 8
 
@@ -116,9 +116,8 @@ class GaugeTime:
         ctx.fill()
 
         # render the big numbers
-        text = f"{val.hour:02}:{val.minute:02}"
         self.label_text.color = (1.0, 1.0, 1.0)
-        self.label_text.render(ctx, text)
+        self.label_text.render(ctx, val)
 
         ctx.pop_group_to_source()
         ctx.paint_with_alpha(0.9)
