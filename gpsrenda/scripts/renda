@@ -30,10 +30,14 @@ def renda(video_paths, data_path, time_offset, config_path, preview):
     widgets = []
     widget_module = import_module('gpsrenda.widgets.widgets')
     for widget_spec in config_data['widgets']:
-        widget_type = widget_spec.pop('type')
-        widget_class = getattr(widget_module, widget_type+'Widget')
-        widget = widget_class(data_source=data_source, **widget_spec)
-        widgets.append(widget)
+        try:
+            widget_type = widget_spec.pop('type')
+            widget_class = getattr(widget_module, widget_type+'Widget')
+            widget = widget_class(data_source=data_source, **widget_spec)
+            widgets.append(widget)
+        except Exception as e:
+            print(f"while trying to create a widget of type {widget_type}:")
+            raise
 
     for video_path in video_paths:
         clip = mpy.VideoFileClip(video_path)
