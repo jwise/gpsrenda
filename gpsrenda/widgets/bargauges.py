@@ -143,7 +143,7 @@ class GaugeVertical:
         self.gaugeh = self.h - self.label_text.measure(dummy_label).height - self.padding * 3
 
         if isinstance(data_range, dict):
-            self.data_range = [(k, v) for (k, v) in date_range.items()]
+            self.data_range = [(k, v) for (k, v) in data_range.items()]
         elif isinstance(data_range, list):
             self.data_range = [(data_range[0], DEFAULT_RGB),
                                (data_range[-1], DEFAULT_RGB)]

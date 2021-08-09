@@ -70,10 +70,6 @@ class TemperatureWidget:
         gauge_class = STYLE_TABLE[style]
         suffix = '°F' if units == 'imperial' else '°C'
 
-        if units == 'imperial':
-            for idx, (val, rgb) in enumerate(colors):
-                colors[idx] = (c_to_f(val), rgb)
-
         gauge = gauge_class(x, y, label="{val:.0f}"+suffix, dummy_label="0.0", data_range=data_range)
         self.gauge = gauge
 
