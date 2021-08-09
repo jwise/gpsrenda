@@ -81,7 +81,7 @@ class TemperatureWidget:
 
 
 class DistanceWidget:
-    def __init__(self, data_source, x, y, w, style='hbar', units='metric'):
+    def __init__(self, data_source, x, y, w, style='hbar', units='metric', data_range = [0, 1]):
         self.data_source = data_source
         self.units = units
         gauge_class = STYLE_TABLE[style]
@@ -92,9 +92,15 @@ class DistanceWidget:
         if units == 'imperial':
             total_distance = km_to_mi(total_distance)
 
-        data_range = [0, total_distance]
+        if isinstance(data_range, dict):
+            data_range = { v * total_distance: rgb for v, rgb in data_range.items() }
+        elif isinstance(data_range, list):
+            data_range = [ v * total_distance for v in data_range ]
+        else:
+          raise ValueError("`data_range` must be a dictionary or list")
 
-        gauge = gauge_class(x, y, w=w, label="{val:.1f}", dummy_label="0.0", caption=f" / {total_distance:.1f} {suffix}",
+        gauge = gauge_class(x, y, w=w, label="{val:.1f}", dummy_label="0.0",
+                            caption=f" / {total_distance:.1f} {suffix}", dummy_caption=None,
                             data_range=data_range)
         self.gauge = gauge
 
