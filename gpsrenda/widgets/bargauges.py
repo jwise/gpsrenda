@@ -5,6 +5,7 @@ import numpy
 
 from .utils import *
 from .text import Text
+from ..globals import globals
 
 
 DEFAULT_RGB = (0.4, 0.4, 1.0)
@@ -27,7 +28,7 @@ class GaugeHorizontal:
         self.caption_text = Text(self.x + self.w - self.padding / 2,
                                  self.y + self.h - self.padding,
                                  size = self.h * 0.5,
-                                 dropshadow = 0,
+                                 dropshadow = self.h * 0.1 if globals['style']['text_shadows'] else 0,
                                  halign = Text.HALIGN_LEFT, valign = Text.VALIGN_BOTTOM_DESCENDERS)
         self.caption_text.x -= self.caption_text.measure(dummy_caption).width + self.caption_text.dropshadow
 
@@ -36,7 +37,7 @@ class GaugeHorizontal:
                                face = Text.DEFAULT_MONO_FONT,
                                size = self.h * 0.9,
                                #slant = cairo.FontSlant.ITALIC,
-                               dropshadow = 0,
+                               dropshadow = self.h * 0.1 if globals['style']['text_shadows'] else 0,
                                halign = Text.HALIGN_RIGHT, valign = Text.VALIGN_BASELINE)
 
         self.gaugew = self.label_text.x - self.label_text.measure(dummy_label).x_advance - self.padding * 3 - self.x
@@ -102,7 +103,10 @@ class GaugeHorizontal:
             # text
             marker_text = Text(xpos + 8,
                                self.y + self.h / 2,
-                               face=Text.DEFAULT_MONO_FONT, size=self.h * 0.5, dropshadow=0, halign=Text.HALIGN_LEFT,
+                               face=Text.DEFAULT_MONO_FONT,
+                               size=self.h * 0.5,
+                               dropshadow= self.h * 0.03 if globals['style']['text_shadows'] else 0,
+                               halign=Text.HALIGN_LEFT,
                                valign=Text.VALIGN_CENTER)
             marker_text.render(ctx, marker_name)
 

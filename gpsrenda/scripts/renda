@@ -16,6 +16,7 @@ from time import sleep
 
 from gpsrenda.datasources import FitDataSource
 from gpsrenda.utils import extract_start_time, timestamp_to_seconds
+from gpsrenda.globals import set_globals
 
 def renda(video_paths, data_path, time_offset, config_path, preview):
     logger = logging.getLogger(__file__)
@@ -25,7 +26,9 @@ def renda(video_paths, data_path, time_offset, config_path, preview):
     with open(config_path, 'r') as config_file:
         config_data = yaml.safe_load(config_file)
 
-    data_source = FitDataSource(data_path, config=config_data['data'])
+    set_globals(config_data.get('globals', {}))
+
+    data_source = FitDataSource(data_path, config=config_data.get('data', {}))
 
     widgets = []
     widget_module = import_module('gpsrenda.widgets.widgets')

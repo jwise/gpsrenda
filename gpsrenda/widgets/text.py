@@ -1,5 +1,6 @@
 import cairo
 from .utils import *
+from ..globals import globals
 
 class Text:
     VALIGN_TOP = "TOP"
@@ -86,7 +87,7 @@ class GaugeText:
         self.label_text = Text(self.x + self.padding,
                                self.y + self.h - self.padding / 2,
                                size = self.h * 0.8,
-                               dropshadow = self.h * 0.1,
+                               dropshadow = self.h * 0.1 if globals['style']['text_shadows'] else 0,
                                face = Text.DEFAULT_MONO_FONT,
                                slant = cairo.FontSlant.ITALIC,
                                halign = Text.HALIGN_RIGHT, valign = Text.VALIGN_BOTTOM_DESCENDERS)
