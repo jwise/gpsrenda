@@ -8,6 +8,7 @@ globals = {
     'style': {
         'text_shadows': False,
         'bar_gradients': False,
+        'bar_gradients_tint': 0.0,
         'background_gradients': False,
     },
 }

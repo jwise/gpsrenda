@@ -13,7 +13,7 @@ DEFAULT_RGB = (0.4, 0.4, 1.0)
 
 class GaugeHorizontal:
     def __init__(self, x, y, w=600, h=60, label='{val:.0f}', dummy_label='99.9', caption='', dummy_caption='mph',
-                 data_range=[0, 100], gradient=False, markers={}):
+                 data_range=[0, 100], gradient=None, markers={}):
         self.x = x
         self.y = y
         self.w = w
@@ -53,7 +53,8 @@ class GaugeHorizontal:
         self.min = self.data_range[0][0]
         self.max = self.data_range[-1][0]
 
-        self.show_gradient = gradient
+        self.show_gradient = globals['style']['bar_gradients'] if gradient is None else gradient
+        self.gradient_tint = globals['style']['bar_gradients_tint']
         self.gradient = HSVGradient(self.x + self.padding, 0, self.x + self.padding + self.gaugew, 0, self.data_range)
 
         self.bgpattern = make_background_pattern(0, self.y, 0, self.y + self.h)
@@ -85,6 +86,11 @@ class GaugeHorizontal:
 
         if self.show_gradient:
             ctx.set_source(self.gradient.pattern)
+            ctx.fill()
+
+            ctx.rectangle(self.x + self.padding, self.y + self.padding, lerp(self.min, 0, self.max, self.gaugew, val),
+                          self.h - self.padding * 2)
+            ctx.set_source_rgba(cur_rgb[0], cur_rgb[1], cur_rgb[2], self.gradient_tint)
         else:
             ctx.set_source_rgb(*cur_rgb)
 
@@ -157,7 +163,8 @@ class GaugeVertical:
         self.min = self.data_range[0][0]
         self.max = self.data_range[-1][0]
 
-        self.show_gradient = gradient
+        self.show_gradient = globals['style']['bar_gradients'] if gradient is None else gradient
+        self.gradient_tint = globals['style']['bar_gradients_tint']
         self.gradient = HSVGradient(0, self.y + self.padding + self.gaugeh, 0, self.y + self.padding, self.data_range)
 
         self.bgpattern = make_background_pattern(0, self.y, 0, self.y + self.h)
@@ -185,6 +192,11 @@ class GaugeVertical:
         ctx.rectangle(self.x + self.padding, self.y + self.padding + self.gaugeh, self.w - self.padding * 2, -lerp(self.min, 0, self.max, self.gaugeh, val))
         if self.show_gradient:
             ctx.set_source(self.gradient.pattern)
+            ctx.fill()
+
+            ctx.rectangle(self.x + self.padding, self.y + self.padding, lerp(self.min, 0, self.max, self.gaugew, val),
+                          self.h - self.padding * 2)
+            ctx.set_source_rgba(cur_rgb[0], cur_rgb[1], cur_rgb[2], self.gradient_tint)
         else:
             ctx.set_source_rgb(*cur_rgb)
         ctx.fill()
