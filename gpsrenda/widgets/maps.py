@@ -118,7 +118,7 @@ class GaugeMap:
         ctx.paint_with_alpha(0.9)
 
 class GaugeElevationMap:
-    def __init__(self, x, y, w = 400, h = 400, line_width = 5, dot_size = 15, dist_scale = 10, with_grade = True, with_elev = True, units = 'metric'):
+    def __init__(self, x, y, w = 400, h = 400, line_width = 5, dot_size = 15, dist_scale = 10, with_grade = True, with_elev = True, units = None):
         self.x = x
         self.y = y
         self.w = w
@@ -153,7 +153,7 @@ class GaugeElevationMap:
                                   halign = Text.HALIGN_CENTER, valign = Text.VALIGN_TOP,
                                   color = (0.8, 0.8, 0.8))
 
-        self.units = units
+        self.units = globals['units'] if units is None else units
 
     def prerender(self, distdata, elevdata):
         print("... computing elevmap bounds ...")

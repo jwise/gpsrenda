@@ -1,6 +1,7 @@
 from gpsrenda.widgets import *
 from gpsrenda.utils import timestamp_to_seconds, seconds_to_timestamp, km_to_mi, c_to_f
 from gpsrenda.widgets.utils import latlondist
+from ..globals import globals
 
 STYLE_TABLE = {
     'hbar': GaugeHorizontal,
@@ -11,11 +12,11 @@ STYLE_TABLE = {
 }
 
 class SpeedWidget:
-    def __init__(self, data_source, x, y, style='hbar', units='metric', data_range=[0, 50]):
+    def __init__(self, data_source, x, y, style='hbar', units=None, data_range=[0, 50]):
         self.data_source = data_source
-        self.units = units
+        self.units = globals['units'] if units is None else units
         gauge_class = STYLE_TABLE[style]
-        caption = 'mph' if units == 'imperial' else 'kph'
+        caption = 'mph' if self.units == 'imperial' else 'kph'
 
         gauge = gauge_class(x, y, label="{val:.1f}", dummy_label="99.9", caption=caption, data_range=data_range)
         self.gauge = gauge
@@ -65,11 +66,11 @@ class PowerWidget:
 
 
 class TemperatureWidget:
-    def __init__(self, data_source, x, y, style='vbar', units='metric', data_range=[0, 100]):
+    def __init__(self, data_source, x, y, style='vbar', units=None, data_range=[0, 100]):
         self.data_source = data_source
-        self.units = units
+        self.units = globals['units'] if units is None else units
         gauge_class = STYLE_TABLE[style]
-        suffix = '°F' if units == 'imperial' else '°C'
+        suffix = '°F' if self.units == 'imperial' else '°C'
 
         gauge = gauge_class(x, y, label="{val:.0f}"+suffix, dummy_label="0.0", data_range=data_range)
         self.gauge = gauge
@@ -82,15 +83,15 @@ class TemperatureWidget:
 
 
 class DistanceWidget:
-    def __init__(self, data_source, x, y, w, style='hbar', units='metric', data_range = [0, 1]):
+    def __init__(self, data_source, x, y, w, style='hbar', units=None, data_range = [0, 1]):
         self.data_source = data_source
-        self.units = units
+        self.units = globals['units'] if units is None else units
         gauge_class = STYLE_TABLE[style]
-        suffix = 'mi' if units == 'imperial' else 'km'
+        suffix = 'mi' if self.units == 'imperial' else 'km'
 
         total_distance = data_source.fields['distance'][-1][1] / 1000
 
-        if units == 'imperial':
+        if self.units == 'imperial':
             total_distance = km_to_mi(total_distance)
 
         if isinstance(data_range, dict):
@@ -100,7 +101,7 @@ class DistanceWidget:
         else:
           raise ValueError("`data_range` must be a dictionary or list")
 
-        gauge = gauge_class(x, y, w=w, label="{val:.1f}", dummy_label="0.0",
+        gauge = gauge_class(x, y, w=w, label="{val:.1f}", dummy_label=f"{total_distance:.1f}",
                             caption=f" / {total_distance:.1f} {suffix}", dummy_caption=None,
                             data_range=data_range)
         self.gauge = gauge
@@ -156,9 +157,9 @@ class MapWidget:
 
 
 class ElevationWidget:
-    def __init__(self, data_source, x, y, h, style='grade', units='imperial'):
+    def __init__(self, data_source, x, y, h, style='grade', units=None):
         self.data_source = data_source
-        self.units = units
+        self.units = globals['units'] if units is None else units
         gauge_class = STYLE_TABLE[style]
         gauge = gauge_class(x, y, h=h, dist_scale=10 * 1000, units=units)
         # prerender

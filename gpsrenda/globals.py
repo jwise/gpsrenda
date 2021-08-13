@@ -11,6 +11,7 @@ globals = {
         'bar_gradients_tint': 0.0,
         'background_gradients': False,
     },
+    'units': 'metric',
 }
 
 def set_globals(params):
