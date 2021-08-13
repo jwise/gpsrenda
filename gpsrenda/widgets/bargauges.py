@@ -56,7 +56,7 @@ class GaugeHorizontal:
         self.show_gradient = gradient
         self.gradient = HSVGradient(self.x + self.padding, 0, self.x + self.padding + self.gaugew, 0, self.data_range)
 
-        self.bgpattern = cairo.SolidPattern(0.2, 0.2, 0.2, 0.9)
+        self.bgpattern = make_background_pattern(0, self.y, 0, self.y + self.h)
 
         self.markers = markers
 
@@ -160,7 +160,7 @@ class GaugeVertical:
         self.show_gradient = gradient
         self.gradient = HSVGradient(0, self.y + self.padding + self.gaugeh, 0, self.y + self.padding, self.data_range)
 
-        self.bgpattern = cairo.SolidPattern(0.2, 0.2, 0.2, 0.9)
+        self.bgpattern = make_background_pattern(0, self.y, 0, self.y + self.h)
 
     def render(self, ctx, val):
         if (val is None) or np.isnan(val):

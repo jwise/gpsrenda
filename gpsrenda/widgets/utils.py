@@ -2,6 +2,8 @@ import cairo
 import colorsys
 import numpy as np
 
+from ..globals import globals
+
 def lerp(x0, v0, x1, v1, x):
     if x < x0:
         return v0
@@ -70,3 +72,12 @@ class HSVGradient:
                    lerp(last[0], last_hsv[1], this[0], this_hsv[1], val),
                    lerp(last[0], last_hsv[2], this[0], this_hsv[2], val))
         return colorsys.hsv_to_rgb(*cur_hsv)
+
+def make_background_pattern(x0, y0, x1, y1):
+    if not globals['style']['background_gradients']:
+        return cairo.SolidPattern(0.2, 0.2, 0.2, 0.9)
+    else:
+        pat = cairo.LinearGradient(x0, y0, x1, y1)
+        pat.add_color_stop_rgba(0.0, 0.2, 0.2, 0.2, 0.9)
+        pat.add_color_stop_rgba(1.0, 0.4, 0.4, 0.4, 0.9)
+        return pat

@@ -95,9 +95,7 @@ class GaugeText:
         if self.w is None:
             self.w = self.label_text.measure(self.dummy_label).width + self.padding * 2 + self.label_text.dropshadow
 
-        self.bgpattern = cairo.LinearGradient(0, self.y, 0, self.y + self.h)
-        self.bgpattern.add_color_stop_rgba(0.0, 0.2, 0.2, 0.2, 0.9)
-        self.bgpattern.add_color_stop_rgba(1.0, 0.4, 0.4, 0.4, 0.9)
+        self.bgpattern = make_background_pattern(0, self.y, 0, self.y + self.h)
 
     def render(self, ctx, val):
         if val is None:
