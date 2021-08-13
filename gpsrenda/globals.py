@@ -10,6 +10,10 @@ globals = {
         'bar_gradients': False,
         'bar_gradients_tint': 0.0,
         'background_gradients': False,
+        'fonts': {
+          'proportional': 'Ubuntu',
+          'monospace': 'Ubuntu Mono',
+        },
     },
     'units': 'metric',
 }

@@ -12,10 +12,14 @@ class Text:
     HALIGN_CENTER = "CENTER"
     HALIGN_RIGHT = "RIGHT"
 
-    DEFAULT_FONT = "Ubuntu"
-    DEFAULT_MONO_FONT = "Ubuntu Mono"
+    DEFAULT_FONT = "__DEFAULT_FONT__"
+    DEFAULT_MONO_FONT = "__DEFAULT_MONO_FONT__"
 
     def __init__(self, x, y, color = (1.0, 1.0, 1.0), face = DEFAULT_FONT, slant = cairo.FontSlant.NORMAL, weight = cairo.FontWeight.BOLD, halign = HALIGN_LEFT, valign = VALIGN_TOP, size = 12, dropshadow = 0, dropshadow_color = (0.0, 0.0, 0.0)):
+        if face == Text.DEFAULT_FONT:
+            face = globals['style']['fonts']['proportional']
+        elif face == Text.DEFAULT_MONO_FONT:
+            face = globals['style']['fonts']['monospace']
         self.font = cairo.ToyFontFace(face, slant, weight)
         self.size = size
         self.x = x
