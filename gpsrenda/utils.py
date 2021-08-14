@@ -1,5 +1,6 @@
+import subprocess
+
 def extract_start_time(video_path):
-    import subprocess
     from datetime import datetime
     import pytz
     from tzlocal import get_localzone
@@ -20,6 +21,18 @@ def extract_start_time(video_path):
     # Declare this to be in local time, then convert to UTC
     print(f"video starts at {utc_creation_time}")
     return utc_creation_time
+
+def is_flipped(video_path):
+    cmd = ["ffprobe",
+           "-v", "quiet",
+           "-of", "default=nw=1:nk=1",
+           "-select_streams", "v:0",
+           "-show_entries", "stream_tags=rotate",
+           video_path]
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
+    out = process.stdout.read().decode('UTF-8', 'ignore')
+    flipped = out == "180\n"
+    return flipped
 
 def timestamp_to_seconds(timestamp):
     from datetime import datetime

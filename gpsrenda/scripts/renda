@@ -15,8 +15,8 @@ from os.path import basename, dirname, join
 from time import sleep
 
 from gpsrenda.datasources import FitDataSource
-from gpsrenda.utils import extract_start_time, timestamp_to_seconds
-from gpsrenda.globals import set_globals
+from gpsrenda.utils import extract_start_time, timestamp_to_seconds, is_flipped
+from gpsrenda.globals import globals, set_globals
 
 def renda(video_paths, data_path, time_offset, config_path, preview):
     logger = logging.getLogger(__file__)
@@ -44,6 +44,10 @@ def renda(video_paths, data_path, time_offset, config_path, preview):
 
     for video_path in video_paths:
         clip = mpy.VideoFileClip(video_path)
+        if globals['video']['force_rotation'] is not None:
+            want_flipped = globals['video']['force_rotation'] == 180
+            if is_flipped(video_path) != want_flipped:
+                clip = clip.rotate(180)
         start_t = timestamp_to_seconds(extract_start_time(video_path))
 
         def make_frame(t):

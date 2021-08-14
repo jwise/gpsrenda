@@ -16,6 +16,9 @@ globals = {
         },
     },
     'units': 'metric',
+    'video': {
+        'force_rotation': None,
+    },
 }
 
 def set_globals(params):
