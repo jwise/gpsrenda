@@ -51,10 +51,37 @@ def interp1d_zeroing(x, y, t, flatten_time = math.inf):
     return pre[1] * (1.0 - alpha) + post[1] * alpha
 
 class FitDataSource:
-    def __init__(self, file_path, config):
-        self.config = merge_dict(DEFAULT_DATA_CONFIG, config)
+    GARMIN_QUIRKS = {
+        'altitude': { 'lag': 25 },
+        'grade': { 'averaging_time': 4 },
+    }
 
+    DEVICES = [
+        ( { 'manufacturer': 'garmin', 'garmin_product': 3121 }, { 'name': 'Garmin Edge 530', 'quirks': GARMIN_QUIRKS } ),
+        ( { 'manufacturer': 'wahoo_fitness', 'product': 31 }, { 'name': 'Wahoo ELEMNT BOLT', 'quirks': {} } ),
+    ]
+
+    def __init__(self, file_path, config):
         fit_file = fitparse.FitFile(file_path)
+        self.config = DEFAULT_DATA_CONFIG
+
+        # Apply quirks as early as possible.
+        file_id = list(fit_file.get_messages('file_id'))[0].get_values()
+        found_device = False
+        for params, val in FitDataSource.DEVICES:
+            if not all([ file_id.get(k, None) == params[k] for k in params ]):
+                continue
+            logger.debug(f"FIT file comes from supported device {val['name']}")
+            self.config = merge_dict(self.config, val['quirks'])
+            found_device = True
+            break
+
+        if not found_device:
+            logger.warn(f"FIT file comes from unsupported device with file_id {file_id} -- add it to datasources.py to silence this warning (and submit a pull request!)")
+
+        # Allow user to override quirks.
+        self.config = merge_dict(self.config, config);
+
         messages = list(fit_file.get_messages('record'))
 
         self.fields = {}
