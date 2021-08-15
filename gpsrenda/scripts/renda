@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 import cairo
-import moviepy.editor as mpy
-import numpy as np
 import yaml
 
 import argparse as ap
@@ -15,8 +13,8 @@ from os.path import basename, dirname, join
 from time import sleep
 
 from gpsrenda.datasources import FitDataSource
-from gpsrenda.utils import extract_start_time, timestamp_to_seconds, is_flipped
 from gpsrenda.globals import globals, set_globals
+from gpsrenda.video import moviepy
 
 def renda(video_paths, data_path, time_offset, config_path, preview):
     logging.basicConfig(format='%(asctime)s %(levelname)s[%(name)s] %(message)s')
@@ -44,60 +42,24 @@ def renda(video_paths, data_path, time_offset, config_path, preview):
             print(f"while trying to create a widget of type {widget_type}:")
             raise
 
+    def make_frame(ctx, t):
+        for widget in widgets:
+            widget.render(ctx, t - time_offset)
+    engine = moviepy.RenderEngineMoviepy(make_frame)
+
     for video_path in video_paths:
-        clip = mpy.VideoFileClip(video_path)
-        if globals['video']['force_rotation'] is not None:
-            want_flipped = globals['video']['force_rotation'] == 180
-            if is_flipped(video_path) != want_flipped:
-                clip = clip.rotate(180)
-        start_t = timestamp_to_seconds(extract_start_time(video_path))
-
-        def make_frame(t):
-            frame = clip.get_frame(t)
-            h, w = frame.shape[:2]
-            alpha = np.zeros((h, w, 1), dtype=frame.dtype)
-            argb_frame = np.concatenate([frame[:,:,::-1], alpha], axis=-1)
-
-            surf = cairo.ImageSurface.create_for_data(argb_frame, cairo.FORMAT_ARGB32, w, h)
-            ctx = cairo.Context(surf)
-            for widget in widgets:
-                widget.render(ctx, t + start_t - time_offset)
-            buf = surf.get_data()
-            out_frame = np.ndarray(shape=argb_frame.shape, dtype=argb_frame.dtype, buffer=buf)
-            return out_frame[:,:,:3][:,:,::-1]
-
-        composite_clip = mpy.VideoClip(make_frame, duration=clip.duration)
-
-        out_dir = join(dirname(video_path), 'rendered')
-        try:
-            makedirs(out_dir)
-        except FileExistsError:
-            pass
-
         if preview:
-            output_file = join(out_dir, basename(video_path).rsplit('.', 1)[0] + ".png")
-            composite_clip.resize((960, 640)).preview(fps=15, audio=False)#save_frame(output_file)
-            try:
-                while True:
-                    sleep(0.1)
-            except KeyboardInterrupt:
-                pass
-
+            engine.preview(video_path)
         else:
-            composite_clip.audio = clip.audio
+            out_dir = join(dirname(video_path), 'rendered')
+            try:
+                makedirs(out_dir)
+            except FileExistsError:
+                pass
 
             output_file = join(out_dir, basename(video_path))
 
-            composite_clip.write_videofile(
-                output_file,
-                fps=clip.fps,
-                audio_codec='aac',
-                threads=None,
-                ffmpeg_params=[
-                    '-crf', '30',
-                ]
-            )
-
+            engine.render(video_path, output_file)
 
 if __name__ == "__main__":
     parser = ap.ArgumentParser()
