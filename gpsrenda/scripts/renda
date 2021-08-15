@@ -19,6 +19,8 @@ from gpsrenda.utils import extract_start_time, timestamp_to_seconds, is_flipped
 from gpsrenda.globals import globals, set_globals
 
 def renda(video_paths, data_path, time_offset, config_path, preview):
+    logging.basicConfig(format='%(asctime)s %(levelname)s[%(name)s] %(message)s')
+
     logger = logging.getLogger(__file__)
     logger.setLevel(logging.DEBUG)
     logger.debug("Begin")
