@@ -24,9 +24,9 @@ DEFAULT_DATA_CONFIG = {
 def interp1d_zeroing(x, y, t, flatten_time = math.inf):
     # easy edge cases first
     if t < x[0]:
-        return NaN
+        return math.nan
     if t > x[-1]:
-        return NaN
+        return math.nan
 
     argt = np.searchsorted(x, t) # x[argt] >= t
     if argt == 0:
