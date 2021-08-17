@@ -18,6 +18,7 @@ globals = {
     'units': 'metric',
     'video': {
         'force_rotation': None,
+        'engine': None,
     },
 }
 

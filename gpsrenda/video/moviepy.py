@@ -7,6 +7,8 @@ import numpy as np
 from gpsrenda.globals import globals
 from gpsrenda.utils import extract_start_time, timestamp_to_seconds, is_flipped
 
+from .engines import register_engine
+
 logger = logging.getLogger(__file__)
 
 class RenderEngineMoviepy:
@@ -58,3 +60,5 @@ class RenderEngineMoviepy:
     def preview(self, src):
         clip, outclip = self._mkclip(src)
         outclip.resize((960, 640)).preview(fps=15, audio=False)
+
+register_engine(RenderEngineMoviepy, name='moviepy')

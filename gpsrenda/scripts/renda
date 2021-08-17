@@ -14,7 +14,7 @@ from time import sleep
 
 from gpsrenda.datasources import FitDataSource
 from gpsrenda.globals import globals, set_globals
-from gpsrenda.video import moviepy
+import gpsrenda.video
 
 def renda(video_paths, data_path, time_offset, config_path, preview):
     logging.basicConfig(format='%(asctime)s %(levelname)s[%(name)s] %(message)s')
@@ -45,7 +45,7 @@ def renda(video_paths, data_path, time_offset, config_path, preview):
     def make_frame(ctx, t):
         for widget in widgets:
             widget.render(ctx, t - time_offset)
-    engine = moviepy.RenderEngineMoviepy(make_frame)
+    engine = gpsrenda.video.default_engine(make_frame)
 
     for video_path in video_paths:
         if preview:
