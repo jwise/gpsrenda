@@ -26,5 +26,5 @@ def _get_default_engine():
         raise ModuleNotFoundError("no video engines available")
     return list(engines.items())[0][1]
 
-def default_engine(renderfn):
-    return _get_default_engine()(renderfn)
+def default_engine(*args, **kwargs):
+    return _get_default_engine()(*args, **kwargs)

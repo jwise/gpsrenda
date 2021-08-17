@@ -12,7 +12,7 @@ from .engines import register_engine
 logger = logging.getLogger(__file__)
 
 class RenderEngineMoviepy:
-    def __init__(self, renderfn):
+    def __init__(self, renderfn, adjust_time_offset = None):
         self.renderfn = renderfn
 
     def _mkclip(self, src):

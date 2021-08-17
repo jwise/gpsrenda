@@ -42,10 +42,15 @@ def renda(video_paths, data_path, time_offset, config_path, preview):
             print(f"while trying to create a widget of type {widget_type}:")
             raise
 
+    def adjust_time_offset(adj):
+        nonlocal time_offset
+        time_offset += adj
+        print(f"\ntime offset now set to {time_offset}")
+
     def make_frame(ctx, t):
         for widget in widgets:
             widget.render(ctx, t - time_offset)
-    engine = gpsrenda.video.default_engine(make_frame)
+    engine = gpsrenda.video.default_engine(make_frame, adjust_time_offset = adjust_time_offset)
 
     for video_path in video_paths:
         if preview:

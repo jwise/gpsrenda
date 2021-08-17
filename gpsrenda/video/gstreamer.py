@@ -152,8 +152,9 @@ class GstOverlayGPS(GstBase.BaseTransform):
         return Gst.FlowReturn.OK
 
 class RenderEngineGstreamer:
-    def __init__(self, renderfn):
+    def __init__(self, renderfn, adjust_time_offset = None):
         self.renderfn = renderfn
+        self.adjust_time_offset = adjust_time_offset
 
     def render(self, src, dest):
         """Set up a Gstreamer encode, and run it."""
@@ -317,6 +318,14 @@ class RenderEngineGstreamer:
                             do_seek(-5)
                         elif key == 'Right':
                             do_seek(5)
+                        elif key == 'minus':
+                            self.adjust_time_offset(-0.2)
+                        elif key == 'equal':
+                            self.adjust_time_offset(0.2)
+                        elif key == 'bracketleft':
+                            self.adjust_time_offset(-2)
+                        elif key == 'bracketright':
+                            self.adjust_time_offset(2)
                         elif key == 'q':
                             loop.quit()
                         else:
