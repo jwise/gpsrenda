@@ -1,6 +1,7 @@
 import fitparse
 import numpy as np
 import math
+import pickle
 from functools import partial
 
 from datetime import datetime, timedelta
@@ -8,9 +9,7 @@ import logging
 
 from gpsrenda.utils import timestamp_to_seconds, seconds_to_timestamp, merge_dict
 
-
 logger = logging.getLogger(__file__)
-
 
 DEFAULT_DATA_CONFIG = {
     'altitude': {
@@ -50,6 +49,45 @@ def interp1d_zeroing(x, y, t, flatten_time = math.inf):
     alpha = (t - pre[0]) / (post[0] - pre[0])
     return pre[1] * (1.0 - alpha) + post[1] * alpha
 
+class ParsedFitData:
+    """
+    Loading large FIT files can be very slow, so we create a pickleable
+    ParsedFitData structure that can be used to create a cache later.
+    """
+
+    # Bump this every time you change anything in ParsedFitData.
+    VERSION = 1
+
+    def __init__(self, file_path):
+        self.version = ParsedFitData.VERSION
+
+        fit_file = fitparse.FitFile(file_path)
+
+        self.file_id = list(fit_file.get_messages('file_id'))[0].get_values()
+
+        messages = list(fit_file.get_messages('record'))
+        self.fields = {}
+        for message in messages:
+            data = message.get_values()
+            time = timestamp_to_seconds(data.pop('timestamp'))
+            for key, value in data.items():
+                try:
+                    self.fields[key].append((time, value))
+                except KeyError:
+                    self.fields[key] = [(time, value)]
+
+    def save_cache(self, cache_path):
+        with open(cache_path, "wb") as f:
+            pickle.dump(self, f)
+
+    @classmethod
+    def load_cache(cls, cache_path):
+        with open(cache_path, "rb") as f:
+            self = pickle.load(f)
+            if self.version != ParsedFitData.VERSION:
+                raise ValueError("incorrect cache version f{self.version} (want f{ParsedFitData.VERSION}) in file f{cache_path}")
+            return self
+
 class FitDataSource:
     GARMIN_QUIRKS = {
         'altitude': { 'lag': 25 },
@@ -62,14 +100,22 @@ class FitDataSource:
     ]
 
     def __init__(self, file_path, config):
-        fit_file = fitparse.FitFile(file_path)
-        self.config = DEFAULT_DATA_CONFIG
+        cache_name = f"{file_path}.gpsrendacache"
+        try:
+            logger.debug(f"trying to load FIT cache from {cache_name}")
+            parsed = ParsedFitData.load_cache(cache_name)
+        except:
+            logger.debug(f"failed to load FIT cache {cache_name}; starting from scratch")
+            parsed = ParsedFitData(file_path)
+            parsed.save_cache(cache_name)
+
+        self.fields = parsed.fields
 
         # Apply quirks as early as possible.
-        file_id = list(fit_file.get_messages('file_id'))[0].get_values()
+        self.config = DEFAULT_DATA_CONFIG
         found_device = False
         for params, val in FitDataSource.DEVICES:
-            if not all([ file_id.get(k, None) == params[k] for k in params ]):
+            if not all([ parsed.file_id.get(k, None) == params[k] for k in params ]):
                 continue
             logger.debug(f"FIT file comes from supported device {val['name']}")
             self.config = merge_dict(self.config, val['quirks'])
@@ -80,23 +126,10 @@ class FitDataSource:
             logger.warn(f"FIT file comes from unsupported device with file_id {file_id} -- add it to datasources.py to silence this warning (and submit a pull request!)")
 
         # Allow user to override quirks.
-        self.config = merge_dict(self.config, config);
-
-        messages = list(fit_file.get_messages('record'))
-
-        self.fields = {}
-        for message in messages:
-            data = message.get_values()
-            time = timestamp_to_seconds(data.pop('timestamp'))
-            for key, value in data.items():
-                try:
-                    self.fields[key].append((time, value))
-                except KeyError:
-                    self.fields[key] = [(time, value)]
+        self.config = merge_dict(self.config, config)
 
         self._interpolators = {}
-        self._interpolators_zeroing = {}
-        for name, values in self.fields.items():
+        for name, values in parsed.fields.items():
             val_array = np.array(values, dtype=np.float)
             # It is possible for the fit file to contain a few or all NaNs due to missing / corrupted data
             # Drop nans before interpolation
