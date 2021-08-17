@@ -8,7 +8,8 @@ import gi
 gi.require_version('Gst', '1.0')
 gi.require_version('GstApp', '1.0')
 gi.require_version('GstBase', '1.0')
-from gi.repository import Gst, GstApp, GstBase, GLib, GObject
+gi.require_version('GstVideo', '1.0')
+from gi.repository import Gst, GstApp, GstBase, GstVideo, GLib, GObject
 
 from gpsrenda.globals import globals
 from gpsrenda.utils import extract_start_time, timestamp_to_seconds, is_flipped
@@ -279,6 +280,12 @@ class RenderEngineGstreamer:
         loop = GLib.MainLoop()
         did_seek = False
 
+        def do_seek(ofs):
+            (_, now) = pipeline.query_position(Gst.Format.TIME)
+            now += ofs * Gst.SECOND
+            pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, now)
+            print(f"\nseeked to t={now / Gst.SECOND}")
+
         def on_message(bus, message):
             mtype = message.type
             if mtype == Gst.MessageType.STATE_CHANGED:
@@ -299,7 +306,35 @@ class RenderEngineGstreamer:
                 print("Error!")
             elif mtype == Gst.MessageType.WARNING:
                 print("Warning!")
+            elif mtype == Gst.MessageType.ELEMENT:
+                (isnav, event) = GstVideo.Navigation.message_parse_event(message)
+                if isnav:
+                    evtype = GstVideo.Navigation.event_get_type(event)
+                    # GST_NAVIGATION_EVENT_MOUSE_MOVE, GST_NAVIGATION_EVENT_KEY_RELEASE, MOUSE_BUTTON_PRESS, ...
+                    if evtype == GstVideo.NavigationEventType.KEY_PRESS:
+                        (iskey, key) = GstVideo.Navigation.event_parse_key_event(event)
+                        if key == 'Left':
+                            do_seek(-5)
+                        elif key == 'Right':
+                            do_seek(5)
+                        elif key == 'q':
+                            loop.quit()
+                        else:
+                            print(f"unknown keypress: {key}")
             return True
+
+        alldone = False
+        def on_timer():
+            if alldone:
+                return False
+            (_, pos) = pipeline.query_position(Gst.Format.TIME)
+            (_, dur) = pipeline.query_duration(Gst.Format.TIME)
+            if dur <= 1000:
+                print("starting up...", end='\r')
+                return True
+            print(f"{pos / Gst.SECOND:.1f} / {dur / Gst.SECOND:.1f}", end='\r')
+            return True
+        GLib.timeout_add(100, on_timer)
 
         bus = pipeline.get_bus()
         bus.connect("message", on_message)
@@ -311,5 +346,7 @@ class RenderEngineGstreamer:
             loop.run()
         finally:
             loop.quit()
+            alldone = True
+        print("")
 
 register_engine(RenderEngineGstreamer, name='gstreamer')
