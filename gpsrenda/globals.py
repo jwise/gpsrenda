@@ -19,6 +19,13 @@ globals = {
     'video': {
         'force_rotation': None,
         'engine': None,
+        'gstreamer': {
+            'h265': True,
+            'framerate': 30000/1001,
+            'speed_preset': 'veryfast',
+            'bitrate': 60000,
+            'encode_threads': 4,
+        }
     },
 }
 
