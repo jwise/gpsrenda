@@ -14,6 +14,10 @@ globals = {
           'proportional': 'Ubuntu',
           'monospace': 'Ubuntu Mono',
         },
+        'padding_strings': {
+          'dummy_value': None,
+          'dummy_caption': 'mph',
+        },
     },
     'units': 'metric',
     'video': {

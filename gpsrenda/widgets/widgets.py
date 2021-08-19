@@ -11,6 +11,9 @@ STYLE_TABLE = {
     'text': GaugeText,
 }
 
+def _dummy_value(n):
+    return n if globals['style']['padding_strings']['dummy_value'] is None else globals['style']['padding_strings']['dummy_value']
+
 class SpeedWidget:
     def __init__(self, data_source, x, y, style='hbar', units=None, data_range=[0, 50]):
         self.data_source = data_source
@@ -18,7 +21,7 @@ class SpeedWidget:
         gauge_class = STYLE_TABLE[style]
         caption = 'mph' if self.units == 'imperial' else 'kph'
 
-        gauge = gauge_class(x, y, label="{val:.1f}", dummy_label="99.9", caption=caption, data_range=data_range)
+        gauge = gauge_class(x, y, label="{val:.1f}", dummy_label=_dummy_value("99.9"), dummy_caption=globals['style']['padding_strings']['dummy_caption'], caption=caption, data_range=data_range)
         self.gauge = gauge
 
     def render(self, context, t):
@@ -32,7 +35,7 @@ class CadenceWidget:
     def __init__(self, data_source, x, y, style='hbar', data_range=[60, 120]):
         self.data_source = data_source
         gauge_class = STYLE_TABLE[style]
-        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="999", caption="rpm", data_range=data_range)
+        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label=_dummy_value("999"), dummy_caption=globals['style']['padding_strings']['dummy_caption'], caption="rpm", data_range=data_range)
         self.gauge = gauge
 
     def render(self, context, t):
@@ -44,7 +47,7 @@ class HeartRateWidget:
     def __init__(self, data_source, x, y, style='hbar', data_range=[40, 220]):
         self.data_source = data_source
         gauge_class = STYLE_TABLE[style]
-        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="999", caption="bpm", data_range=data_range)
+        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label=_dummy_value("999"), dummy_caption=globals['style']['padding_strings']['dummy_caption'], caption="bpm", data_range=data_range)
         self.gauge = gauge
 
     def render(self, context, t):
@@ -53,15 +56,18 @@ class HeartRateWidget:
 
 
 class PowerWidget:
-    def __init__(self, data_source, x, y, style='hbar', data_range=[0, 1000], markers={}):
+    def __init__(self, data_source, x, y, style='hbar', data_range=[0, 1000], as_percent_ftp = None, markers={}):
         self.data_source = data_source
         gauge_class = STYLE_TABLE[style]
-        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label="999", caption="W", data_range=data_range,
-                            markers=markers)
+        gauge = gauge_class(x, y,
+                            label="{val:.0f}", dummy_label=_dummy_value("999"),
+                            dummy_caption=globals['style']['padding_strings']['dummy_caption'], caption="%FTP" if as_percent_ftp is not None else "W",
+                            data_range=data_range, markers=markers)
+        self.norm_coeff = 1 if as_percent_ftp is None else (as_percent_ftp / 100.0)
         self.gauge = gauge
 
     def render(self, context, t):
-        value = self.data_source.power(t)
+        value = self.data_source.power(t) / self.norm_coeff
         self.gauge.render(context, value)
 
 
