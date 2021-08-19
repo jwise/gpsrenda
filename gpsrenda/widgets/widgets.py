@@ -66,13 +66,13 @@ class PowerWidget:
 
 
 class TemperatureWidget:
-    def __init__(self, data_source, x, y, style='vbar', units=None, data_range=[0, 100]):
+    def __init__(self, data_source, x, y, w=80, h=400, style='vbar', units=None, data_range=[0, 100]):
         self.data_source = data_source
         self.units = globals['units'] if units is None else units
         gauge_class = STYLE_TABLE[style]
         suffix = '°F' if self.units == 'imperial' else '°C'
 
-        gauge = gauge_class(x, y, label="{val:.0f}"+suffix, dummy_label="0.0", data_range=data_range)
+        gauge = gauge_class(x, y, w=w, h=h, label="{val:.0f}"+suffix, dummy_label="0.0", data_range=data_range)
         self.gauge = gauge
 
     def render(self, context, t):
@@ -157,11 +157,11 @@ class MapWidget:
 
 
 class ElevationWidget:
-    def __init__(self, data_source, x, y, h, style='grade', units=None):
+    def __init__(self, data_source, x, y, w = 400, h = 400, style='grade', units=None):
         self.data_source = data_source
         self.units = globals['units'] if units is None else units
         gauge_class = STYLE_TABLE[style]
-        gauge = gauge_class(x, y, h=h, dist_scale=10 * 1000, units=units)
+        gauge = gauge_class(x, y, w=w, h=h, dist_scale=10 * 1000, units=units)
         # prerender
         gauge.prerender(self.data_source.fields['distance'], self.data_source.fields['altitude'])
         self.gauge = gauge
