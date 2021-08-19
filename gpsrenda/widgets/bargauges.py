@@ -101,7 +101,7 @@ class GaugeHorizontal:
             # line
             ctx.set_source_rgb(1.0, 1.0, 1.0)
             ctx.set_line_width(4)
-            xpos = lerp(self.min, 0, self.max, self.gaugew, marker_value)
+            xpos = self.x + self.padding + lerp(self.min, 0, self.max, self.gaugew, marker_value)
             ctx.move_to(xpos, self.y + self.padding)
             ctx.line_to(xpos, self.y + self.h - self.padding)
             ctx.stroke()
