@@ -296,9 +296,14 @@ class RenderEngineGstreamer:
         loop = GLib.MainLoop()
         did_seek = False
 
+        last_seek = 0
         def do_seek(ofs):
+            nonlocal last_seek
             (_, now) = pipeline.query_position(Gst.Format.TIME)
+            if now == -1:
+                now = last_seek
             now += ofs * Gst.SECOND
+            last_seek = now
             pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, now)
             print(f"\nseeked to t={now / Gst.SECOND}")
 
