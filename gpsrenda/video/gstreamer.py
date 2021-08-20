@@ -2,6 +2,7 @@ import sys
 import logging
 import time
 import datetime
+import re
 
 import cairo
 import gi
@@ -31,6 +32,15 @@ class VideoSourceGoPro:
             self.flip = globals['video']['force_rotation'] == 180
         self.h265 = globals['video']['gstreamer']['h265'] # needed until we can pull this out of the file with libav
         self.framerate = globals['video']['gstreamer']['framerate'] # needed until we can pull this out of the file with libav
+        self.splitmux = False
+        if re.match(r'.*G[HX]01....\.MP4', self.filename):
+            self.splitmux = True
+            self.splitfilename = re.sub(r'(G[HX])01(....\.MP4)', r'\1*\2', self.filename)
+            logger.debug(f"{filename} is a GoPro file, will glob to glue together -> {self.splitfilename}")
+            if re.match(r'.*GH01....\.MP4', self.filename):
+                self.h265 = False
+            else:
+                self.h265 = True
 
     def add_to_pipeline(self, pipeline):
         """Returns a tuple of GstElements that have src pads for *decoded* video and *encoded* audio."""
@@ -40,14 +50,19 @@ class VideoSourceGoPro:
             pipeline.add(elt)
             return elt
 
-        filesrc = mkelt("filesrc")
-        filesrc.set_property("location", self.filename)
-
         multiqueue_vpad = None
         multiqueue_apad = None
 
-        qtdemux = mkelt("qtdemux")
-        filesrc.link(qtdemux)
+        if self.splitmux:
+            qtdemux = mkelt("splitmuxsrc")
+            qtdemux.set_property("location", self.splitfilename)
+        else:
+            filesrc = mkelt("filesrc")
+            filesrc.set_property("location", self.filename)
+
+            qtdemux = mkelt("qtdemux")
+            filesrc.link(qtdemux)
+
         def qtdemux_pad_callback(qtdemux, pad):
             name = pad.get_name()
             if name == "video_0":
