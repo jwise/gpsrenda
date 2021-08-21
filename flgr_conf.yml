@@ -1,3 +1,8 @@
+globals:
+  video:
+    gstreamer:
+      h265: False
+
 data:
   altitude:
     lag: 25
