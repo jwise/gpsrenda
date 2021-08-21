@@ -15,7 +15,10 @@ def extract_start_time(video_path):
     creation_time_str = out.split("=")[1].split("Z")[0]
     creation_time = datetime.strptime(creation_time_str, "%Y-%m-%dT%H:%M:%S.%f")
     local_tz = get_localzone()
-    localized_creation_time = local_tz.localize(creation_time)
+    try:
+      localized_creation_time = local_tz.localize(creation_time)
+    except:
+      localized_creation_time = creation_time.replace(tzinfo = local_tz)
     utc_creation_time = localized_creation_time.astimezone(pytz.utc).replace(tzinfo=None)
     print(f"raw creation at {creation_time_str}")
     # Declare this to be in local time, then convert to UTC
