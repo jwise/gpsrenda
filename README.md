@@ -1,11 +1,14 @@
 # gpsrenda: simple open-source GPS statistics video overlay renderer
 
 `gpsrenda` is a video overlay renderer that takes statistics from a FIT file, and renders gauges on top of video
-captured during the activity using e.g. a GoPro. It uses Cairo to do all its graphics rendering, and `moviepy` as a
+captured during the activity using e.g. a GoPro. It uses Cairo to do all its graphics rendering, and
+either `gstreamer` or `moviepy` as a
 video backend. It is designed to be (relatively) simple, hackable, and extensible. It competes with DashWare and Garmin
 VIRB (with the hope that it's easier to automate than DashWare, and more turnkey than VIRB).
 
 ## Installation
+
+### Running natively
 
 ```sh
 git clone git@github.com:jwise/gpsrenda.git
@@ -15,6 +18,28 @@ pip install .
 
 `gpsrenda` should work with system, pyenv/pip, and Anaconda-based Python installations. On Windows only Anaconda has
 been tested due to `cairo` being tricky on Windows systems.
+
+To use the `gstreamer` backend, you will need the Python `gi` bindings for
+`gstreamer`, as well as a good collection of plugins.  Consult the
+Dockerfile for a list of required packages.
+
+### Running in Docker
+
+An experimental Dockerfile (which attempts to X-forward, and also to forward
+PulseAudio) is provided.  To use it, first build a Docker image, and then
+use the provided `create-container` script to build an appropriate
+environment to execute in.  Then, inside the container, you can invoke
+`renda` as normal:
+
+```sh
+$ docker build -t gpsrenda .
+$ ./docker-create-container.sh
+$ docker start -ia gpsrenda-$(id -un)
+YOU@SOMETHING:/$ cd gpsrenda
+YOU@SOMETHING:/gpsrenda$ renda -p samples/GH010180_clip.MP4 samples/Valley_Ride.fit flgr_conf.yml
+```
+
+With any luck, `gpsrenda` will give a live preview of your video clip.
 
 ## Usage
 
