@@ -27,7 +27,7 @@ class VideoSourceGoPro:
     def __init__(self, filename):
         self.filename = filename
         if globals['video']['force_rotation'] is None:
-            self.flip = is_flipped(src)
+            self.flip = is_flipped(filename)
         else:
             self.flip = globals['video']['force_rotation'] == 180
         self.h265 = globals['video']['gstreamer']['h265'] # needed until we can pull this out of the file with libav
