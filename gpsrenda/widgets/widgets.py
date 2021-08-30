@@ -189,3 +189,15 @@ class TimeWidget:
     def render(self, context, t):
         ts = seconds_to_timestamp(t).astimezone(self.tz)
         self.gauge.render(context, f"{ts.hour:02}:{ts.minute:02}")
+
+class TextWidget:
+    def __init__(self, data_source, x, y, w = None, style='text', text='lol?'):
+        import tzlocal
+
+        self.data_source = data_source
+        gauge_class = STYLE_TABLE[style]
+        self.text = text
+        self.gauge = gauge_class(x, y, w=w, dummy_label = text)
+
+    def render(self, context, t):
+        self.gauge.render(context, self.text)
