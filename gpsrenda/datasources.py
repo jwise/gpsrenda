@@ -97,6 +97,7 @@ class FitDataSource:
     DEVICES = [
         ( { 'manufacturer': 'garmin', 'garmin_product': 3121 }, { 'name': 'Garmin Edge 530', 'quirks': GARMIN_QUIRKS } ),
         ( { 'manufacturer': 'wahoo_fitness', 'product': 31 }, { 'name': 'Wahoo ELEMNT BOLT', 'quirks': {} } ),
+        ( { 'manufacturer': 'hammerhead', 'product_name': 'Karoo 2' }, { 'name': 'Hammerhead Karoo 2', 'quirks': {} } ),
     ]
 
     def __init__(self, file_path, config):
@@ -123,7 +124,7 @@ class FitDataSource:
             break
 
         if not found_device:
-            logger.warn(f"FIT file comes from unsupported device with file_id {file_id} -- add it to datasources.py to silence this warning (and submit a pull request!)")
+            logger.warn(f"FIT file comes from unsupported device with file_id {parsed.file_id} -- add it to datasources.py to silence this warning (and submit a pull request!)")
 
         # Allow user to override quirks.
         self.config = merge_dict(self.config, config)
