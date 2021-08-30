@@ -1,4 +1,7 @@
+import logging
 import subprocess
+
+logger = logging.getLogger(__name__)
 
 def extract_start_time(video_path):
     from datetime import datetime
@@ -20,9 +23,9 @@ def extract_start_time(video_path):
     except:
       localized_creation_time = creation_time.replace(tzinfo = local_tz)
     utc_creation_time = localized_creation_time.astimezone(pytz.utc).replace(tzinfo=None)
-    print(f"raw creation at {creation_time_str}")
+    logger.debug(f"raw creation at {creation_time_str}")
     # Declare this to be in local time, then convert to UTC
-    print(f"video starts at {utc_creation_time}")
+    logger.debug(f"video starts at {utc_creation_time}")
     return utc_creation_time
 
 def is_flipped(video_path):

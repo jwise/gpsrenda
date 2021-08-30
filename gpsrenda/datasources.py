@@ -105,7 +105,7 @@ class FitDataSource:
             logger.debug(f"trying to load FIT cache from {cache_name}")
             parsed = ParsedFitData.load_cache(cache_name)
         except:
-            logger.debug(f"failed to load FIT cache {cache_name}; starting from scratch")
+            logger.info(f"could not load from FIT cache {cache_name}; loading FIT file the hard way (this may take a moment)")
             parsed = ParsedFitData(file_path)
             parsed.save_cache(cache_name)
 

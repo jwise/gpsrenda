@@ -1,4 +1,7 @@
 #from . import video, widgets, fit
+import logging
+
+logger = logging.getLogger(__name__)
 
 def km_to_mi(km):
     return km * 0.62137119

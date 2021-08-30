@@ -12,12 +12,15 @@ from os import makedirs
 from os.path import basename, dirname, join
 from time import sleep
 
+import gpsrenda
+gpsrenda.logger.setLevel(logging.DEBUG)
+
 from gpsrenda.datasources import FitDataSource
 from gpsrenda.globals import globals, set_globals
 import gpsrenda.video
 
 def renda(video_paths, data_path, time_offset, config_path, preview):
-    logging.basicConfig(format='%(asctime)s %(levelname)s[%(name)s] %(message)s')
+    logging.basicConfig(format='%(asctime)s %(levelname)s [%(name)s] %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
 
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
