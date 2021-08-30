@@ -9,7 +9,7 @@ from gpsrenda.utils import extract_start_time, timestamp_to_seconds, is_flipped
 
 from .engines import register_engine
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 class RenderEngineMoviepy:
     def __init__(self, renderfn, adjust_time_offset = None):

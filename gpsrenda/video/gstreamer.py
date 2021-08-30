@@ -21,7 +21,7 @@ from .gst_hacks import map_gst_buffer
 
 Gst.init(sys.argv)
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 class VideoSourceGoPro:
     def __init__(self, filename):

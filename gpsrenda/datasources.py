@@ -9,7 +9,7 @@ import logging
 
 from gpsrenda.utils import timestamp_to_seconds, seconds_to_timestamp, merge_dict
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 DEFAULT_DATA_CONFIG = {
     'altitude': {
