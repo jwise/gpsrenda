@@ -32,6 +32,13 @@ class VideoSourceGoPro:
             self.flip = globals['video']['force_rotation'] == 180
         self.h265 = globals['video']['gstreamer']['h265'] # needed until we can pull this out of the file with libav
         self.framerate = globals['video']['gstreamer']['framerate'] # needed until we can pull this out of the file with libav
+        if globals['video']['scale'] is None:
+            self.scale = None
+        else:
+            m = re.match(r'(\d+)x(\d+)', globals['video']['scale'])
+            if m is None:
+                raise ValueError('scale parameter in globals is not WxH')
+            self.scale = (int(m[1]), int(m[2]))
         self.splitmux = False
         if re.match(r'.*G[HX]01....\.MP4', self.filename):
             self.splitmux = True
@@ -90,17 +97,30 @@ class VideoSourceGoPro:
 
         queuev1 = mkelt("queue")
         avdec.link(queuev1)
+        
+        # Does nothing if there's nothing to do, so no performance impact in that case.
+        scaleout = mkelt("videoscale")
+        queuev1.link(scaleout)
+        
+        if self.scale:
+            print(f"YES WE ARE SCALING {self.scale}")
+            capsfilter = mkelt("capsfilter")
+            capsfilter.set_property('caps', Gst.Caps.from_string(f"video/x-raw,width={self.scale[0]},height={self.scale[1]}"))
+            scaleout.link(capsfilter)
+            scaleout = capsfilter
+
+        print(scaleout)
 
         videoconvert_in = mkelt("videoconvert")
-        queuev1.link(videoconvert_in)
+        scaleout.link(videoconvert_in)
         vout = videoconvert_in
-
+        
         if self.flip:
             videoflip = mkelt("videoflip")
             videoflip.set_property("method", "rotate-180")
             videoconvert_in.link(videoflip)
             vout = videoflip
-
+        
         return (aout, vout)
 
     def decode_audio(self, pipeline, aout):

@@ -23,6 +23,7 @@ globals = {
     'video': {
         'force_rotation': None,
         'engine': None,
+        'scale': None,
         'gstreamer': {
             'h265': True,
             'framerate': 30000/1001,
