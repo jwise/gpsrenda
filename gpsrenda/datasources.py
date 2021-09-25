@@ -16,7 +16,8 @@ DEFAULT_DATA_CONFIG = {
         'lag': 0
     },
     'grade': {
-        'averaging_time': 2
+        'averaging_time': 2,
+        'min_distance': 8 # 2.6mph at 7s averaging time
     },
     'gap_flatten_time': 2,
 }
@@ -89,13 +90,19 @@ class ParsedFitData:
             return self
 
 class FitDataSource:
-    GARMIN_QUIRKS = {
+    GARMIN530_QUIRKS = {
         'altitude': { 'lag': 25 },
         'grade': { 'averaging_time': 4 },
     }
 
+    GARMIN520_QUIRKS = {
+        'altitude': { 'lag': 5 },
+        'grade': { 'averaging_time': 7 },
+    }
+
     DEVICES = [
-        ( { 'manufacturer': 'garmin', 'garmin_product': 3121 }, { 'name': 'Garmin Edge 530', 'quirks': GARMIN_QUIRKS } ),
+        ( { 'manufacturer': 'garmin', 'garmin_product': 3121 }, { 'name': 'Garmin Edge 530', 'quirks': GARMIN530_QUIRKS } ),
+        ( { 'manufacturer': 'garmin', 'garmin_product': 'edge520' }, { 'name': 'Garmin Edge 520', 'quirks': GARMIN520_QUIRKS } ),
         ( { 'manufacturer': 'wahoo_fitness', 'product': 31 }, { 'name': 'Wahoo ELEMNT BOLT', 'quirks': {} } ),
         ( { 'manufacturer': 'hammerhead', 'product_name': 'Karoo 2' }, { 'name': 'Hammerhead Karoo 2', 'quirks': {} } ),
     ]
@@ -163,10 +170,10 @@ class FitDataSource:
         except KeyError:
             dt = self.config['grade']['averaging_time'] / 2
             den = self.distance(t + dt) - self.distance(t - dt)
-            if den == 0:
+            if den < self.config['grade']['min_distance']:
                 result = 0.0
             else:
-                result = (self.altitude(t + dt) - self.altitude(t - dt)) / den * 100
+                result = (self.altitude(t + dt + self.config['altitude']['lag']) - self.altitude(t - dt + self.config['altitude']['lag'])) / den * 100
         return result
 
     def heart_rate(self, t):
