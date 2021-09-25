@@ -103,13 +103,10 @@ class VideoSourceGoPro:
         queuev1.link(scaleout)
         
         if self.scale:
-            print(f"YES WE ARE SCALING {self.scale}")
             capsfilter = mkelt("capsfilter")
             capsfilter.set_property('caps', Gst.Caps.from_string(f"video/x-raw,width={self.scale[0]},height={self.scale[1]}"))
             scaleout.link(capsfilter)
             scaleout = capsfilter
-
-        print(scaleout)
 
         videoconvert_in = mkelt("videoconvert")
         scaleout.link(videoconvert_in)
