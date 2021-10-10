@@ -40,11 +40,11 @@ class VideoSourceGoPro:
                 raise ValueError('scale parameter in globals is not WxH')
             self.scale = (int(m[1]), int(m[2]))
         self.splitmux = False
-        if re.match(r'.*G[HX]01....\.MP4', self.filename):
+        if re.match(r'.*G[HXL]01....\.(MP4|LRV)', self.filename):
             self.splitmux = True
-            self.splitfilename = re.sub(r'(G[HX])01(....\.MP4)', r'\1*\2', self.filename)
+            self.splitfilename = re.sub(r'(G[HXL])01(....\.(?:MP4|LRV))', r'\1*\2', self.filename)
             logger.debug(f"{filename} is a GoPro file, will glob to glue together -> {self.splitfilename}")
-            if re.match(r'.*GH01....\.MP4', self.filename):
+            if re.match(r'.*G[HL]01....\.(?:MP4|LRV)', self.filename):
                 self.h265 = False
             else:
                 self.h265 = True
