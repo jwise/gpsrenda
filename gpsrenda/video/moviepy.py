@@ -57,7 +57,7 @@ class RenderEngineMoviepy:
             ]
         )
 
-    def preview(self, src):
+    def preview(self, src, seek = 0.0):
         clip, outclip = self._mkclip(src)
         outclip.resize((960, 640)).preview(fps=15, audio=False)
 

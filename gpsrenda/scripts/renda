@@ -19,7 +19,7 @@ from gpsrenda.datasources import FitDataSource
 from gpsrenda.globals import globals, set_globals
 import gpsrenda.video
 
-def renda(video_paths, data_path, time_offset, config_path, preview):
+def renda(video_paths, data_path, time_offset, config_path, preview = None):
     logging.basicConfig(format='%(asctime)s %(levelname)s [%(name)s] %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
 
     logger = logging.getLogger(__name__)
@@ -56,8 +56,8 @@ def renda(video_paths, data_path, time_offset, config_path, preview):
     engine = gpsrenda.video.default_engine(make_frame, adjust_time_offset = adjust_time_offset)
 
     for video_path in video_paths:
-        if preview:
-            engine.preview(video_path)
+        if preview is not None:
+            engine.preview(video_path, seek = preview)
         else:
             out_dir = join(dirname(video_path), 'rendered')
             try:
@@ -77,9 +77,10 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--time-offset', dest='time_offset', type=float, default=0.,
                         help="How far ahead (+) or behind (-) is the video compared to the fit file's internal timestamps")
     parser.add_argument('-p', '--preview', dest='preview', action='store_true', default=False)
+    parser.add_argument('--preview-seek', dest='preview_seek', type=float, default=0., help="Time offset to start previewing from")
 
     args = parser.parse_args()
     video_paths = sum([glob(pattern) for pattern in args.video_pattern], [])
     time_offset = args.time_offset #timedelta(seconds=args.time_offset)
 
-    renda(video_paths, args.data_path, time_offset, args.config_path, args.preview)
+    renda(video_paths, args.data_path, time_offset, args.config_path, preview = args.preview_seek if args.preview else None)
