@@ -79,26 +79,41 @@ class Text:
         ctx.show_text(text)
 
 class GaugeText:
-    def __init__(self, x, y, w = None, h = 60, dummy_label = "00:00"):
+    def __init__(self, x, y, w = None, h = 60, dummy_label = "00:00", caption = "", dummy_caption = None, italic = True, align_right = False):
         self.x = x
         self.y = y
         self.w = w
         self.h = h
         self.dummy_label = dummy_label
+        dummy_caption = dummy_caption if dummy_caption else caption
 
         self.padding = h / 8
 
-        self.label_text = Text(self.x + self.padding,
-                               self.y + self.h - self.padding / 2,
+        self.caption_text = Text(0,
+                                 self.y + self.h - self.padding / 2,
+                                 size = self.h * 0.5,
+                                 dropshadow = self.h * 0.1 if globals['style']['text_shadows'] else 0,
+                                 halign = Text.HALIGN_LEFT, valign = Text.VALIGN_BOTTOM_DESCENDERS)
+        self.caption = caption
+
+        self.label_text = Text(0,
+                               self.y + self.h - self.padding / 2 if caption == "" else self.caption_text.y - self.caption_text.descender_y - self.caption_text.dropshadow,
                                size = self.h * 0.8,
                                dropshadow = self.h * 0.1 if globals['style']['text_shadows'] else 0,
                                face = Text.DEFAULT_MONO_FONT,
-                               slant = cairo.FontSlant.ITALIC,
-                               halign = Text.HALIGN_RIGHT, valign = Text.VALIGN_BOTTOM_DESCENDERS)
-        self.label_text.x += self.label_text.measure(self.dummy_label).width + self.label_text.dropshadow
+                               slant = cairo.FontSlant.ITALIC if italic else cairo.FontSlant.NORMAL,
+                               halign = Text.HALIGN_RIGHT, valign = Text.VALIGN_BOTTOM_DESCENDERS if caption == "" else Text.VALIGN_BASELINE)
+        
+        if not align_right:
+            self.label_text.x = self.x + self.padding + self.label_text.measure(self.dummy_label).width + self.label_text.dropshadow
+            self.caption_text.x = self.label_text.x + self.padding / 2
+        else:
+            self.caption_text.x = self.x + self.w - self.padding - self.caption_text.measure(dummy_caption).width - self.caption_text.dropshadow
+            self.label_text.x = self.caption_text.x - self.padding / 2
+        
         if self.w is None:
             self.w = self.label_text.measure(self.dummy_label).width + self.padding * 2 + self.label_text.dropshadow
-
+        
         self.bgpattern = make_background_pattern(0, self.y, 0, self.y + self.h)
 
     def render(self, ctx, val):
@@ -121,6 +136,10 @@ class GaugeText:
         # render the big numbers
         self.label_text.color = (1.0, 1.0, 1.0)
         self.label_text.render(ctx, val)
+        
+        # render the little caption, if any
+        self.caption_text.color = (1.0, 1.0, 1.0)
+        self.caption_text.render(ctx, self.caption)
 
         ctx.pop_group_to_source()
         ctx.paint_with_alpha(0.9)

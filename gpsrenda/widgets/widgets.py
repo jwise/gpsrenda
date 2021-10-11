@@ -118,6 +118,24 @@ class DistanceWidget:
             value = km_to_mi(value)
         self.gauge.render(context, value)
 
+class DistanceRemainingWidget:
+    def __init__(self, data_source, x, y, w, style='text', distance_past_end = 0, align_right = True):
+        # Distance remaining is always in meters.  Sorry, that's how bikes
+        # are.  I don't make the rules.
+        self.data_source = data_source
+        gauge_class = STYLE_TABLE[style]
+        suffix = 'm'
+
+        self.total_distance = data_source.fields['distance'][-1][1] - distance_past_end
+
+        gauge = gauge_class(x, y, w=w, dummy_label=f"{self.total_distance:.0f}", caption = "m to go", italic = False, align_right = align_right)
+        self.gauge = gauge
+
+    def render(self, context, t):
+        value = self.total_distance - self.data_source.distance(t)
+        if value < 0:
+            value = 0
+        self.gauge.render(context, f"{value:.0f}")
 
 class MapWidget:
     PRIVACY_RANGE = 2000 #m
