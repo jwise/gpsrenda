@@ -52,6 +52,7 @@ class VideoSourceGoPro:
         if re.match(r'.*CYQ_....\.MP4', self.filename):
             logger.debug(f"{filename} is a Cycliq file, turning on PCM audio override")
             self.pcm = True
+            self.h265 = False
 
     def add_to_pipeline(self, pipeline):
         """Returns a tuple of GstElements that have src pads for *decoded* video and *encoded* audio."""
