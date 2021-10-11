@@ -99,12 +99,17 @@ class FitDataSource:
         'altitude': { 'lag': 5 },
         'grade': { 'averaging_time': 7 },
     }
+    
+    LEZYNE_QUIRKS = {
+        'grade': { 'averaging_time': 7 },
+    }
 
     DEVICES = [
         ( { 'manufacturer': 'garmin', 'garmin_product': 3121 }, { 'name': 'Garmin Edge 530', 'quirks': GARMIN530_QUIRKS } ),
         ( { 'manufacturer': 'garmin', 'garmin_product': 'edge520' }, { 'name': 'Garmin Edge 520', 'quirks': GARMIN520_QUIRKS } ),
         ( { 'manufacturer': 'wahoo_fitness', 'product': 31 }, { 'name': 'Wahoo ELEMNT BOLT', 'quirks': {} } ),
         ( { 'manufacturer': 'hammerhead', 'product_name': 'Karoo 2' }, { 'name': 'Hammerhead Karoo 2', 'quirks': {} } ),
+        ( { 'manufacturer': 'lezyne', 'product': 11 }, { 'name': 'Lezyne Mega XL', 'quirks': LEZYNE_QUIRKS }),
     ]
 
     def __init__(self, file_path, config):
@@ -138,6 +143,10 @@ class FitDataSource:
 
         self._interpolators = {}
         for name, values in parsed.fields.items():
+            # fitparse gets this wrong, and maps 0% right to 'right'.
+            if "left_right_balance" in name:
+                values = [ (t, 0x80 if v == 'right' else v) for t,v in values ]
+
             val_array = np.array(values, dtype=np.float)
             # It is possible for the fit file to contain a few or all NaNs due to missing / corrupted data
             # Drop nans before interpolation
