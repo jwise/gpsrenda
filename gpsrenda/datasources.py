@@ -15,6 +15,9 @@ DEFAULT_DATA_CONFIG = {
     'altitude': {
         'lag': 0
     },
+    'position': {
+        'lag': 0
+    },
     'grade': {
         'averaging_time': 2,
         'min_distance': 8 # 2.6mph at 7s averaging time
@@ -103,11 +106,15 @@ class FitDataSource:
     LEZYNE_QUIRKS = {
         'grade': { 'averaging_time': 7 },
     }
+    
+    WAHOO_QUIRKS = {
+        'position': { 'lag': 1 },
+    }
 
     DEVICES = [
         ( { 'manufacturer': 'garmin', 'garmin_product': 3121 }, { 'name': 'Garmin Edge 530', 'quirks': GARMIN530_QUIRKS } ),
         ( { 'manufacturer': 'garmin', 'garmin_product': 'edge520' }, { 'name': 'Garmin Edge 520', 'quirks': GARMIN520_QUIRKS } ),
-        ( { 'manufacturer': 'wahoo_fitness', 'product': 31 }, { 'name': 'Wahoo ELEMNT BOLT', 'quirks': {} } ),
+        ( { 'manufacturer': 'wahoo_fitness', 'product': 31 }, { 'name': 'Wahoo ELEMNT BOLT', 'quirks': WAHOO_QUIRKS } ),
         ( { 'manufacturer': 'hammerhead', 'product_name': 'Karoo 2' }, { 'name': 'Hammerhead Karoo 2', 'quirks': {} } ),
         ( { 'manufacturer': 'lezyne', 'product': 11 }, { 'name': 'Lezyne Mega XL', 'quirks': LEZYNE_QUIRKS }),
     ]
@@ -171,7 +178,7 @@ class FitDataSource:
         return self._interpolators['cadence'](t, flatten_time = self.config['gap_flatten_time'])
 
     def distance(self, t):
-        return self._interpolators['distance'](t)
+        return self._interpolators['distance'](t + self.config['position']['lag'])
 
     def grade(self, t):
         try:
@@ -189,16 +196,16 @@ class FitDataSource:
         return self._interpolators['heart_rate'](t)
 
     def lat(self, t):
-        return self._interpolators['position_lat'](t)
+        return self._interpolators['position_lat'](t + self.config['position']['lag'])
 
     def lon(self, t):
-        return self._interpolators['position_long'](t)
+        return self._interpolators['position_long'](t + self.config['position']['lag'])
 
     def power(self, t):
         return self._interpolators['power'](t, flatten_time = self.config['gap_flatten_time'])
 
     def speed(self, t):
-        return self._interpolators['speed'](t, flatten_time = self.config['gap_flatten_time'])
+        return self._interpolators['speed'](t + self.config['position']['lag'], flatten_time = self.config['gap_flatten_time'])
 
     def temperature(self, t):
         return self._interpolators['temperature'](t)
