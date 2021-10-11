@@ -31,6 +31,7 @@ class VideoSourceGoPro:
         else:
             self.flip = globals['video']['force_rotation'] == 180
         self.h265 = globals['video']['gstreamer']['h265'] # needed until we can pull this out of the file with libav
+        self.pcm = globals['video']['gstreamer']['pcm_audio']
         self.framerate = globals['video']['gstreamer']['framerate'] # needed until we can pull this out of the file with libav
         if globals['video']['scale'] is None:
             self.scale = None
@@ -48,6 +49,9 @@ class VideoSourceGoPro:
                 self.h265 = False
             else:
                 self.h265 = True
+        if re.match(r'.*CYQ_....\.MP4', self.filename):
+            logger.debug(f"{filename} is a Cycliq file, turning on PCM audio override")
+            self.pcm = True
 
     def add_to_pipeline(self, pipeline):
         """Returns a tuple of GstElements that have src pads for *decoded* video and *encoded* audio."""
@@ -127,11 +131,14 @@ class VideoSourceGoPro:
             pipeline.add(elt)
             return elt
 
-        avdec_aac = mkelt("avdec_aac")
-        aout.link(avdec_aac)
+        if self.pcm:
+            avdec = aout
+        else:
+            avdec = mkelt("avdec_aac")
+            aout.link(avdec)
 
         audioconvert = mkelt("audioconvert")
-        avdec_aac.link(audioconvert)
+        avdec.link(audioconvert)
 
         audioresample = mkelt("audioresample")
         audioconvert.link(audioresample)
