@@ -1,3 +1,5 @@
+import math
+
 from gpsrenda.widgets import *
 from gpsrenda.utils import timestamp_to_seconds, seconds_to_timestamp, km_to_mi, c_to_f
 from gpsrenda.widgets.utils import latlondist
@@ -132,7 +134,11 @@ class DistanceRemainingWidget:
         self.gauge = gauge
 
     def render(self, context, t):
-        value = self.total_distance - self.data_source.distance(t)
+        dist = self.data_source.distance(t)
+        if dist is None or math.isnan(dist):
+            self.gauge.render(context, None)
+            return
+        value = self.total_distance - dist
         if value < 0:
             value = 0
         self.gauge.render(context, f"{value:.0f}")

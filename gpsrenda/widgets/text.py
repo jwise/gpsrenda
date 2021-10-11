@@ -132,14 +132,15 @@ class GaugeText:
         ctx.rectangle(self.x, self.y, self.w, self.h)
         ctx.set_source(self.bgpattern)
         ctx.fill()
-
-        # render the big numbers
-        self.label_text.color = (1.0, 1.0, 1.0)
-        self.label_text.render(ctx, val)
         
-        # render the little caption, if any
-        self.caption_text.color = (1.0, 1.0, 1.0)
-        self.caption_text.render(ctx, self.caption)
+        if val is not None:
+            # render the big numbers
+            self.label_text.color = (1.0, 1.0, 1.0)
+            self.label_text.render(ctx, val)
+        
+            # render the little caption, if any
+            self.caption_text.color = (1.0, 1.0, 1.0)
+            self.caption_text.render(ctx, self.caption)
 
         ctx.pop_group_to_source()
         ctx.paint_with_alpha(0.9)
