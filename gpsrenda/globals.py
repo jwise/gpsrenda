@@ -25,7 +25,7 @@ globals = {
         'engine': None,
         'scale': None,
         'gstreamer': {
-            'h265': True,
+            'h265': False,
             'pcm_audio': False,
             'framerate': 30000/1001,
             'speed_preset': 'veryfast',
