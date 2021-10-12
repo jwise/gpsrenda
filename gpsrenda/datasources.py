@@ -148,11 +148,16 @@ class FitDataSource:
         # Allow user to override quirks.
         self.config = merge_dict(self.config, config)
 
+        mintime = math.inf
+
         self._interpolators = {}
         for name, values in parsed.fields.items():
             # fitparse gets this wrong, and maps 0% right to 'right'.
             if "left_right_balance" in name:
                 values = [ (t, 0x80 if v == 'right' else v) for t,v in values ]
+            
+            if len(values) > 0 and values[0][0] < mintime:
+                mintime = values[0][0]
 
             val_array = np.array(values, dtype=np.float)
             # It is possible for the fit file to contain a few or all NaNs due to missing / corrupted data
@@ -170,6 +175,8 @@ class FitDataSource:
                 not_nan_idx, = np.where(np.logical_not(nans))
                 x, y = val_array[not_nan_idx,0], val_array[not_nan_idx,1]
                 self._interpolators[name] = partial(interp1d_zeroing, x, y)
+        
+        logger.debug(f"FIT file starts at {seconds_to_timestamp(mintime)} (ts = {mintime:.0f})")
 
     def altitude(self, t):
         return self._interpolators['altitude'](t + self.config['altitude']['lag'])

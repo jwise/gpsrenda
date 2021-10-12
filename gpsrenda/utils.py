@@ -25,7 +25,7 @@ def extract_start_time(video_path):
     utc_creation_time = localized_creation_time.astimezone(pytz.utc).replace(tzinfo=None)
     logger.debug(f"raw creation at {creation_time_str}")
     # Declare this to be in local time, then convert to UTC
-    logger.debug(f"video starts at {utc_creation_time}")
+    logger.debug(f"video starts at {seconds_to_timestamp(timestamp_to_seconds(utc_creation_time))} (ts = {timestamp_to_seconds(utc_creation_time):.0f})")
     return utc_creation_time
 
 def is_flipped(video_path):
