@@ -17,13 +17,13 @@ def _dummy_value(n):
     return n if globals['style']['padding_strings']['dummy_value'] is None else globals['style']['padding_strings']['dummy_value']
 
 class SpeedWidget:
-    def __init__(self, data_source, x, y, style='hbar', units=None, data_range=[0, 50]):
+    def __init__(self, data_source, x, y, style='hbar', units=None, data_range=[0, 50], **kwargs):
         self.data_source = data_source
         self.units = globals['units'] if units is None else units
         gauge_class = STYLE_TABLE[style]
         caption = 'mph' if self.units == 'imperial' else 'kph'
 
-        gauge = gauge_class(x, y, label="{val:.1f}", dummy_label=_dummy_value("99.9"), dummy_caption=globals['style']['padding_strings']['dummy_caption'], caption=caption, data_range=data_range)
+        gauge = gauge_class(x, y, label="{val:.1f}", dummy_label=_dummy_value("99.9"), dummy_caption=globals['style']['padding_strings']['dummy_caption'], caption=caption, data_range=data_range, **kwargs)
         self.gauge = gauge
 
     def render(self, context, t):
@@ -34,10 +34,10 @@ class SpeedWidget:
 
 
 class CadenceWidget:
-    def __init__(self, data_source, x, y, style='hbar', data_range=[60, 120]):
+    def __init__(self, data_source, x, y, style='hbar', data_range=[60, 120], **kwargs):
         self.data_source = data_source
         gauge_class = STYLE_TABLE[style]
-        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label=_dummy_value("999"), dummy_caption=globals['style']['padding_strings']['dummy_caption'], caption="rpm", data_range=data_range)
+        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label=_dummy_value("999"), dummy_caption=globals['style']['padding_strings']['dummy_caption'], caption="rpm", data_range=data_range, **kwargs)
         self.gauge = gauge
 
     def render(self, context, t):
@@ -46,10 +46,10 @@ class CadenceWidget:
 
 
 class HeartRateWidget:
-    def __init__(self, data_source, x, y, style='hbar', data_range=[40, 220]):
+    def __init__(self, data_source, x, y, style='hbar', data_range=[40, 220], **kwargs):
         self.data_source = data_source
         gauge_class = STYLE_TABLE[style]
-        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label=_dummy_value("999"), dummy_caption=globals['style']['padding_strings']['dummy_caption'], caption="bpm", data_range=data_range)
+        gauge = gauge_class(x, y, label="{val:.0f}", dummy_label=_dummy_value("999"), dummy_caption=globals['style']['padding_strings']['dummy_caption'], caption="bpm", data_range=data_range, **kwargs)
         self.gauge = gauge
 
     def render(self, context, t):
@@ -58,13 +58,14 @@ class HeartRateWidget:
 
 
 class PowerWidget:
-    def __init__(self, data_source, x, y, style='hbar', data_range=[0, 1000], as_percent_ftp = None, markers={}):
+    def __init__(self, data_source, x, y, style='hbar', data_range=[0, 1000], as_percent_ftp = None, markers={}, **kwargs):
         self.data_source = data_source
         gauge_class = STYLE_TABLE[style]
         gauge = gauge_class(x, y,
                             label="{val:.0f}", dummy_label=_dummy_value("999"),
                             dummy_caption=globals['style']['padding_strings']['dummy_caption'], caption="%FTP" if as_percent_ftp is not None else "W",
-                            data_range=data_range, markers=markers)
+                            data_range=data_range, markers=markers,
+                            **kwargs)
         self.norm_coeff = 1 if as_percent_ftp is None else (as_percent_ftp / 100.0)
         self.gauge = gauge
 
@@ -121,7 +122,7 @@ class DistanceWidget:
         self.gauge.render(context, value)
 
 class DistanceRemainingWidget:
-    def __init__(self, data_source, x, y, w, style='text', distance_past_end = 0, align_right = True):
+    def __init__(self, data_source, x, y, w, h=60, style='text', distance_past_end = 0, align_right = True):
         # Distance remaining is always in meters.  Sorry, that's how bikes
         # are.  I don't make the rules.
         self.data_source = data_source
@@ -130,7 +131,7 @@ class DistanceRemainingWidget:
 
         self.total_distance = data_source.fields['distance'][-1][1] - distance_past_end
 
-        gauge = gauge_class(x, y, w=w, dummy_label=f"{self.total_distance:.0f}", caption = "m to go", italic = False, align_right = align_right)
+        gauge = gauge_class(x, y, w=w, h=h, dummy_label=f"{self.total_distance:.0f}", caption = "m to go", italic = False, align_right = align_right)
         self.gauge = gauge
 
     def render(self, context, t):
