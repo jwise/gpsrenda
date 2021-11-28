@@ -33,6 +33,7 @@ class VideoSourceGoPro:
         self.h265 = globals['video']['gstreamer']['h265'] # needed until we can pull this out of the file with libav
         self.pcm = globals['video']['gstreamer']['pcm_audio']
         self.framerate = globals['video']['gstreamer']['framerate'] # needed until we can pull this out of the file with libav
+        self.decoder = globals['video']['gstreamer']['decoder']
         if globals['video']['scale'] is None:
             self.scale = None
         else:
@@ -53,6 +54,15 @@ class VideoSourceGoPro:
             logger.debug(f"{filename} is a Cycliq file, turning on PCM audio override")
             self.pcm = True
             self.h265 = False
+        
+        if self.decoder is None:
+            if (     self.h265  and Gst.ElementFactory.find("vaapih265dec")) or \
+               ((not self.h265) and Gst.ElementFactory.find("vaapih264dec")):
+                logger.debug(f"found vaapi decoder plugin; using VAAPI decoder")
+                self.decoder = 'vaapi'
+            else:
+                logger.debug(f"no hardware accelerated decoder found; using software decoder")
+                self.decoder = 'software'
 
     def add_to_pipeline(self, pipeline):
         """Returns a tuple of GstElements that have src pads for *decoded* video and *encoded* audio."""
@@ -96,11 +106,18 @@ class VideoSourceGoPro:
         aout = queuea0
 
         # video pipeline
-        avdec = mkelt("avdec_h265" if self.h265 else "avdec_h264")
-        multiqueue.get_static_pad(f"src_{multiqueue_vpad.get_name().split('_')[1]}").link(avdec.get_static_pad("sink"))
-        avdec.set_property("max-threads", 4)
+        if self.decoder == 'vaapi':
+            avdec = mkelt("vaapih265dec" if self.h265 else "vaapih264dec")
+            multiqueue.get_static_pad(f"src_{multiqueue_vpad.get_name().split('_')[1]}").link(avdec.get_static_pad("sink"))
+        elif self.decoder == 'software':
+            avdec = mkelt("avdec_h265" if self.h265 else "avdec_h264")
+            multiqueue.get_static_pad(f"src_{multiqueue_vpad.get_name().split('_')[1]}").link(avdec.get_static_pad("sink"))
+            avdec.set_property("max-threads", 6)
+        else:
+            raise ValueError(f"unknown decode method {self.decoder}")
 
         queuev1 = mkelt("queue")
+        queuev1.set_property("max-size-bytes", 100 * 1024 * 1024)
         avdec.link(queuev1)
         
         # Does nothing if there's nothing to do, so no performance impact in that case.
@@ -378,6 +395,7 @@ class RenderEngineGstreamer:
             return True
 
         alldone = False
+        starttime = 0
         def on_timer():
             if alldone:
                 return False
@@ -386,7 +404,10 @@ class RenderEngineGstreamer:
             if dur <= 1000:
                 print("starting up...", end='\r')
                 return True
-            print(f"{pos / Gst.SECOND:.1f} / {dur / Gst.SECOND:.1f}", end='\r')
+            nonlocal starttime
+            if starttime == 0 and gpsoverlay.frames_processed > 0:
+                starttime = time.time()
+            print(f"{pos / Gst.SECOND:.1f} / {dur / Gst.SECOND:.1f} ({gpsoverlay.frames_processed / (time.time() - starttime):.1f} fps)        ", end='\r')
             return True
         GLib.timeout_add(100, on_timer)
 

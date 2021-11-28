@@ -31,6 +31,7 @@ globals = {
             'speed_preset': 'veryfast',
             'bitrate': 60000,
             'encode_threads': 4,
+            'decoder': None,
         }
     },
 }
