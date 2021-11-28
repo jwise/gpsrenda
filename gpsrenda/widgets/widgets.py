@@ -188,11 +188,11 @@ class MapWidget:
 
 
 class ElevationWidget:
-    def __init__(self, data_source, x, y, w = 400, h = 400, style='grade', units=None):
+    def __init__(self, data_source, x, y, w = 400, h = 400, style='grade', dist_scale = 10 * 1000, units=None, **kwargs):
         self.data_source = data_source
         self.units = globals['units'] if units is None else units
         gauge_class = STYLE_TABLE[style]
-        gauge = gauge_class(x, y, w=w, h=h, dist_scale=10 * 1000, units=units)
+        gauge = gauge_class(x, y, w=w, h=h, dist_scale=dist_scale, units=units, **kwargs)
         # prerender
         gauge.prerender(self.data_source.fields['distance'], self.data_source.fields['altitude'])
         self.gauge = gauge
