@@ -75,13 +75,13 @@ class PowerWidget:
 
 
 class TemperatureWidget:
-    def __init__(self, data_source, x, y, w=80, h=400, style='vbar', units=None, data_range=[0, 100]):
+    def __init__(self, data_source, x, y, w=80, h=400, style='vbar', units=None, data_range=[0, 100], **kwargs):
         self.data_source = data_source
         self.units = globals['units'] if units is None else units
         gauge_class = STYLE_TABLE[style]
         suffix = '°F' if self.units == 'imperial' else '°C'
 
-        gauge = gauge_class(x, y, w=w, h=h, label="{val:.0f}"+suffix, dummy_label="0.0", data_range=data_range)
+        gauge = gauge_class(x, y, w=w, h=h, label="{val:.0f}"+suffix if style == 'vbar' else "{val:.0f}", caption = suffix, dummy_label="0.0", data_range=data_range, **kwargs)
         self.gauge = gauge
 
     def render(self, context, t):
