@@ -32,6 +32,7 @@ globals = {
             'bitrate': 60000,
             'encode_threads': 4,
             'decoder': None,
+            'encoder': 'x264', # x264 is actually just as fast on my machine as the hardware encoder ... and the video quality is a lot better for ~ the same bitrate
         }
     },
 }

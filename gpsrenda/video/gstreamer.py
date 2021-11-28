@@ -3,6 +3,7 @@ import logging
 import time
 import datetime
 import re
+import signal
 
 import cairo
 import gi
@@ -33,7 +34,6 @@ class VideoSourceGoPro:
         self.h265 = globals['video']['gstreamer']['h265'] # needed until we can pull this out of the file with libav
         self.pcm = globals['video']['gstreamer']['pcm_audio']
         self.framerate = globals['video']['gstreamer']['framerate'] # needed until we can pull this out of the file with libav
-        self.decoder = globals['video']['gstreamer']['decoder']
         if globals['video']['scale'] is None:
             self.scale = None
         else:
@@ -54,7 +54,8 @@ class VideoSourceGoPro:
             logger.debug(f"{filename} is a Cycliq file, turning on PCM audio override")
             self.pcm = True
             self.h265 = False
-        
+
+        self.decoder = globals['video']['gstreamer']['decoder']
         if self.decoder is None:
             if (     self.h265  and Gst.ElementFactory.find("vaapih265dec")) or \
                ((not self.h265) and Gst.ElementFactory.find("vaapih264dec")):
@@ -109,36 +110,46 @@ class VideoSourceGoPro:
         if self.decoder == 'vaapi':
             avdec = mkelt("vaapih265dec" if self.h265 else "vaapih264dec")
             multiqueue.get_static_pad(f"src_{multiqueue_vpad.get_name().split('_')[1]}").link(avdec.get_static_pad("sink"))
+            
+            # We can use hardware-accelerated scale/convert/flip, too.
+            vout = mkelt("vaapipostproc")
+            if self.scale:
+                vout.set_property('width' , self.scale[0])
+                vout.set_property('height', self.scale[1])
+            if self.flip:
+                vout.set_property('video-direction', 2) # 'Rotate 180 degrees'
+            avdec.link(vout)
+
         elif self.decoder == 'software':
             avdec = mkelt("avdec_h265" if self.h265 else "avdec_h264")
             multiqueue.get_static_pad(f"src_{multiqueue_vpad.get_name().split('_')[1]}").link(avdec.get_static_pad("sink"))
             avdec.set_property("max-threads", 6)
+            
+            # Does nothing if there's nothing to do, so no performance impact in that case.
+            scaleout = mkelt("videoscale")
+            avdec.link(scaleout)
+
+            if self.scale:
+                capsfilter = mkelt("capsfilter")
+                capsfilter.set_property('caps', Gst.Caps.from_string(f"video/x-raw,width={self.scale[0]},height={self.scale[1]}"))
+                scaleout.link(capsfilter)
+                scaleout = capsfilter
+
+            videoconvert_in = mkelt("videoconvert")
+            scaleout.link(videoconvert_in)
+            vout = videoconvert_in
+        
+            if self.flip:
+                videoflip = mkelt("videoflip")
+                videoflip.set_property("method", "rotate-180")
+                videoconvert_in.link(videoflip)
+                vout = videoflip
         else:
             raise ValueError(f"unknown decode method {self.decoder}")
 
         queuev1 = mkelt("queue")
         queuev1.set_property("max-size-bytes", 100 * 1024 * 1024)
         avdec.link(queuev1)
-        
-        # Does nothing if there's nothing to do, so no performance impact in that case.
-        scaleout = mkelt("videoscale")
-        queuev1.link(scaleout)
-        
-        if self.scale:
-            capsfilter = mkelt("capsfilter")
-            capsfilter.set_property('caps', Gst.Caps.from_string(f"video/x-raw,width={self.scale[0]},height={self.scale[1]}"))
-            scaleout.link(capsfilter)
-            scaleout = capsfilter
-
-        videoconvert_in = mkelt("videoconvert")
-        scaleout.link(videoconvert_in)
-        vout = videoconvert_in
-        
-        if self.flip:
-            videoflip = mkelt("videoflip")
-            videoflip.set_property("method", "rotate-180")
-            videoconvert_in.link(videoflip)
-            vout = videoflip
         
         return (aout, vout)
 
@@ -235,18 +246,38 @@ class RenderEngineGstreamer:
         videoconvert_out = mkelt("videoconvert")
         gpsoverlay.link(videoconvert_out)
 
-        x264enc = mkelt("x264enc")
-        x264enc.set_property("pass", "qual") # constant quality
-        x264enc.set_property("speed-preset", globals['video']['gstreamer']['speed_preset'])
-        x264enc.set_property("bitrate", globals['video']['gstreamer']['bitrate']) # should be quantizer for CRF mode in pass=qual, but it isn't?  oh, well
-        x264enc.set_property("threads", globals['video']['gstreamer']['encode_threads'])
-        videoconvert_out.link(x264enc)
+        encoder = globals['video']['gstreamer']['encoder']
+        if encoder is None:
+            if Gst.ElementFactory.find("vaapih264enc"):
+                logger.debug(f"found vaapi encoder plugin; using VAAPI encoder")
+                encoder = 'vaapi'
+            else:
+                logger.debug(f"no hardware accelerated encoder found; using x264")
+                encoder = 'x264'
 
-        x264q = mkelt("queue")
-        x264enc.link(x264q)
+        if encoder == "vaapi":
+            videoenc0 = mkelt("vaapih264enc")
+            videoenc0.set_property("rate-control", 4) # VBR
+            videoenc0.set_property("bitrate", globals['video']['gstreamer']['bitrate'])
+            videoconvert_out.link(videoenc0)
+            
+            videoenc = mkelt("h264parse")
+            videoenc0.link(videoenc)
+        elif encoder == "x264":
+            videoenc = mkelt("x264enc")
+            videoenc.set_property("pass", "qual") # constant quality
+            videoenc.set_property("speed-preset", globals['video']['gstreamer']['speed_preset'])
+            videoenc.set_property("bitrate", globals['video']['gstreamer']['bitrate']) # should be quantizer for CRF mode in pass=qual, but it isn't?  oh, well
+            videoenc.set_property("threads", globals['video']['gstreamer']['encode_threads'])
+            videoconvert_out.link(videoenc)
+        else:
+            raise RuntimeError(f"unknown encode method {encoder}")
+
+        videoq = mkelt("queue")
+        videoenc.link(videoq)
 
         mp4mux = mkelt("mp4mux")
-        x264q.link(mp4mux)
+        videoq.link(mp4mux)
         aout.link(mp4mux)
 
         filesink = mkelt("filesink")
@@ -294,12 +325,17 @@ class RenderEngineGstreamer:
 
         pipeline.set_state(Gst.State.PLAYING)
 
-        try:
-            loop.run()
-        finally:
+        def shutdown_loop(*args):
             pipeline.send_event(Gst.Event.new_eos())
             pipeline.set_state(Gst.State.NULL)
             loop.quit()
+
+        try:
+            signal.signal(signal.SIGINT, shutdown_loop)
+            loop.run()
+        except e:
+            shutdown_loop()
+            
         alldone = True
         print("")
 
