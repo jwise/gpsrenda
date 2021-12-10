@@ -243,7 +243,12 @@ class RenderEngineGstreamer:
         pipeline.add(gpsoverlay)
         vout.link(gpsoverlay)
 
-        videoconvert_out = mkelt("videoconvert")
+        if Gst.ElementFactory.find("vaapipostproc") and globals['video']['gstreamer']['x264_profile'] == 'high':
+            # vaapipostproc doesn't seem to be able to output yuv444 / yuv422p?
+            logger.debug(f"using hardware accelerated colorspace conversion")
+            videoconvert_out = mkelt("vaapipostproc")
+        else:
+            videoconvert_out = mkelt("videoconvert")
         gpsoverlay.link(videoconvert_out)
 
         encoder = globals['video']['gstreamer']['encoder']
@@ -270,6 +275,11 @@ class RenderEngineGstreamer:
             videoenc.set_property("bitrate", globals['video']['gstreamer']['bitrate']) # should be quantizer for CRF mode in pass=qual, but it isn't?  oh, well
             videoenc.set_property("threads", globals['video']['gstreamer']['encode_threads'])
             videoconvert_out.link(videoenc)
+
+            capsfilter = mkelt("capsfilter")
+            capsfilter.set_property('caps', Gst.Caps.from_string(f"video/x-h264,profile={globals['video']['gstreamer']['x264_profile']}")) # DaVinci can only do yuv4:2:0.
+            videoenc.link(capsfilter)
+            videoenc = capsfilter
         else:
             raise RuntimeError(f"unknown encode method {encoder}")
 
@@ -362,7 +372,10 @@ class RenderEngineGstreamer:
         pipeline.add(gpsoverlay)
         vout.link(gpsoverlay)
 
-        videoconvert_out = mkelt("videoconvert")
+        if Gst.ElementFactory.find("vaapipostproc"):
+            videoconvert_out = mkelt("vaapipostproc")
+        else:
+            videoconvert_out = mkelt("videoconvert")
         gpsoverlay.link(videoconvert_out)
 
         queuev2 = mkelt("queue")
