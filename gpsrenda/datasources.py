@@ -115,6 +115,7 @@ class FitDataSource:
         ( { 'manufacturer': 'garmin', 'garmin_product': 3121 }, { 'name': 'Garmin Edge 530', 'quirks': GARMIN530_QUIRKS } ),
         ( { 'manufacturer': 'garmin', 'garmin_product': 'edge520' }, { 'name': 'Garmin Edge 520', 'quirks': GARMIN520_QUIRKS } ),
         ( { 'manufacturer': 'wahoo_fitness', 'product': 31 }, { 'name': 'Wahoo ELEMNT BOLT', 'quirks': WAHOO_QUIRKS } ),
+        ( { 'manufacturer': 'wahoo_fitness', 'product': 0 }, { 'name': 'Wahoo mobile app', 'quirks': {} } ),
         ( { 'manufacturer': 'hammerhead', 'product_name': 'Karoo 2' }, { 'name': 'Hammerhead Karoo 2', 'quirks': {} } ),
         ( { 'manufacturer': 'lezyne', 'product': 11 }, { 'name': 'Lezyne Mega XL', 'quirks': LEZYNE_QUIRKS }),
     ]
