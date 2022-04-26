@@ -5,11 +5,12 @@ import yaml
 import argparse as ap
 from datetime import datetime
 from datetime import timedelta
+from fnmatch import fnmatch
 from glob import glob
 from importlib import import_module
 import logging
 from os import makedirs
-from os.path import basename, dirname, join
+from os.path import basename, dirname, join, realpath
 from time import sleep
 
 import gpsrenda
@@ -17,9 +18,23 @@ gpsrenda.logger.setLevel(logging.DEBUG)
 
 from gpsrenda.datasources import FitDataSource
 from gpsrenda.globals import globals, set_globals
+from gpsrenda.utils import merge_dict
 import gpsrenda.video
 
-def renda(video_paths, data_path, time_offset, config_path, preview = None):
+def find_video_config(config, path, default = {}):
+    globs = config.get('video', [])
+    matched = False
+    conf = merge_dict({}, default)
+    for possglob in globs:
+        if not fnmatch(realpath(path), realpath(possglob['glob'])):
+            continue
+        matched = True
+        merge_dict(conf, possglob)
+    if not matched:
+        gpsrenda.logger.warning(f"path {path} was not matched by any video glob objects in configuration file")
+    return conf
+
+def renda(video_paths, data_path, default_time_offset, config_path, preview = None):
     logging.basicConfig(format='%(asctime)s %(levelname)s [%(name)s] %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
 
     logger = logging.getLogger(__name__)
@@ -45,17 +60,21 @@ def renda(video_paths, data_path, time_offset, config_path, preview = None):
             print(f"while trying to create a widget of type {widget_type}:")
             raise
 
+    interactive_offset = 0.0
+    time_offset = default_time_offset
     def adjust_time_offset(adj):
-        nonlocal time_offset
-        time_offset += adj
-        print(f"\ntime offset now set to {time_offset}")
+        nonlocal interactive_offset
+        interactive_offset += adj
+        print(f"\ntime offset now set to {time_offset + interactive_offset}")
 
     def make_frame(ctx, t):
         for widget in widgets:
-            widget.render(ctx, t - time_offset)
+            widget.render(ctx, t - time_offset - interactive_offset)
     engine = gpsrenda.video.default_engine(make_frame, adjust_time_offset = adjust_time_offset)
 
     for video_path in video_paths:
+        cfg = find_video_config(config_data, video_path, default = {'offset': default_time_offset})
+        time_offset = cfg['offset']
         if preview is not None:
             engine.preview(video_path, seek = preview)
         else:
