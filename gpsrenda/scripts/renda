@@ -75,6 +75,7 @@ def renda(video_paths, data_path, default_time_offset, config_path, preview = No
     for video_path in video_paths:
         cfg = find_video_config(config_data, video_path, default = {'offset': default_time_offset})
         time_offset = cfg['offset']
+        engine.set_tweaks(cfg.get('tweaks', {}))
         if preview is not None:
             engine.preview(video_path, seek = preview)
         else:

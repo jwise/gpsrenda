@@ -14,7 +14,7 @@ gi.require_version('GstVideo', '1.0')
 from gi.repository import Gst, GstApp, GstBase, GstVideo, GLib, GObject
 
 from gpsrenda.globals import globals
-from gpsrenda.utils import extract_start_time, timestamp_to_seconds, is_flipped
+from gpsrenda.utils import extract_start_time, timestamp_to_seconds, is_flipped, merge_dict
 
 from .engines import register_engine
 
@@ -25,21 +25,22 @@ Gst.init(sys.argv)
 logger = logging.getLogger(__name__)
 
 class VideoSourceGoPro:
-    def __init__(self, filename):
+    def __init__(self, filename, tweaks):
+        self.tweaks = tweaks
         self.filename = filename
-        if globals['video']['force_rotation'] is None:
+        if tweaks['force_rotation'] is None:
             self.flip = is_flipped(filename)
         else:
-            self.flip = globals['video']['force_rotation'] == 180
+            self.flip = tweaks['force_rotation'] == 180
         self.h265 = globals['video']['gstreamer']['h265'] # needed until we can pull this out of the file with libav
         self.pcm = globals['video']['gstreamer']['pcm_audio']
         self.framerate = globals['video']['gstreamer']['framerate'] # needed until we can pull this out of the file with libav
-        if globals['video']['scale'] is None:
+        if tweaks['scale'] is None:
             self.scale = None
         else:
-            m = re.match(r'(\d+)x(\d+)', globals['video']['scale'])
+            m = re.match(r'(\d+)x(\d+)', tweaks['scale'])
             if m is None:
-                raise ValueError('scale parameter in globals is not WxH')
+                raise ValueError('scale parameter in globals/tweaks is not WxH')
             self.scale = (int(m[1]), int(m[2]))
         self.splitmux = False
         if re.match(r'.*G[HXL]01....\.(MP4|LRV)', self.filename):
@@ -64,7 +65,7 @@ class VideoSourceGoPro:
             else:
                 logger.debug(f"no hardware accelerated decoder found; using software decoder")
                 self.decoder = 'software'
-
+    
     def add_to_pipeline(self, pipeline):
         """Returns a tuple of GstElements that have src pads for *decoded* video and *encoded* audio."""
         def mkelt(eltype):
@@ -118,6 +119,10 @@ class VideoSourceGoPro:
                 vout.set_property('height', self.scale[1])
             if self.flip:
                 vout.set_property('video-direction', 2) # 'Rotate 180 degrees'
+            if 'brightness' in self.tweaks:
+                vout.set_property('brightness', self.tweaks['brightness'])
+            if 'contrast' in self.tweaks:
+                vout.set_property('contrast', self.tweaks['contrast'])
             avdec.link(vout)
 
         elif self.decoder == 'software':
@@ -144,8 +149,22 @@ class VideoSourceGoPro:
                 videoflip.set_property("method", "rotate-180")
                 videoconvert_in.link(videoflip)
                 vout = videoflip
+            if 'brightness' in self.tweaks or 'contrast' in self.tweaks:
+                videobalance = mkelt("videobalance")
+                if 'brightness' in self.tweaks:
+                    videobalance.set_property('brightness', self.tweaks['brightness'])
+                if 'contrast' in self.tweaks:
+                    videobalance.set_property('contrast', self.tweaks['contrast'])
+                vout.link(videobalance)
+                vout = videobalance
         else:
             raise ValueError(f"unknown decode method {self.decoder}")
+        
+        if 'gamma' in self.tweaks: # note: not hw-accelerated!
+            voutg = mkelt('gamma')
+            voutg.set_property('gamma', self.tweaks['gamma'])
+            vout.link(voutg)
+            vout = voutg
 
         queuev1 = mkelt("queue")
         queuev1.set_property("max-size-bytes", 100 * 1024 * 1024)
@@ -223,11 +242,18 @@ class RenderEngineGstreamer:
     def __init__(self, renderfn, adjust_time_offset = None):
         self.renderfn = renderfn
         self.adjust_time_offset = adjust_time_offset
+        self.tweaks = {}
+
+    def set_tweaks(self, tweaks):
+        self.tweaks = tweaks
 
     def render(self, src, dest):
         """Set up a Gstreamer encode, and run it."""
+        
+        tweaks = merge_dict({}, globals['video'])
+        tweaks = merge_dict(tweaks, self.tweaks)
 
-        input = VideoSourceGoPro(src)
+        input = VideoSourceGoPro(src, tweaks = tweaks)
 
         pipeline = Gst.Pipeline.new("pipeline")
 
@@ -352,7 +378,10 @@ class RenderEngineGstreamer:
     def preview(self, src, seek = 0.0):
         """Set up a Gstreamer preview pipeline, and begin playing it."""
 
-        input = VideoSourceGoPro(src)
+        tweaks = merge_dict({}, globals['video'])
+        tweaks = merge_dict(tweaks, self.tweaks)
+
+        input = VideoSourceGoPro(src, tweaks = tweaks)
 
         pipeline = Gst.Pipeline.new("pipeline")
 

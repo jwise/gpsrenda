@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 class RenderEngineMoviepy:
     def __init__(self, renderfn, adjust_time_offset = None):
         self.renderfn = renderfn
+    
+    def set_tweaks(self, tweaks):
+        pass
 
     def _mkclip(self, src):
         clip = mpy.VideoFileClip(src)
