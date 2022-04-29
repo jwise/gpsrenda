@@ -121,7 +121,7 @@ class GaugeMap:
         ctx.paint_with_alpha(0.9)
 
 class GaugeElevationMap:
-    def __init__(self, x, y, w = 400, h = 400, line_width = 5, dot_size = 15, dist_scale = 10, with_grade = True, with_elev = True, units = None):
+    def __init__(self, x, y, w = 400, h = 400, line_width = 5, dot_size = 15, dist_scale = 10, with_grade = True, with_elev = True, units = None, texth = None):
         self.x = x
         self.y = y
         self.w = w
@@ -129,6 +129,8 @@ class GaugeElevationMap:
         self.line_width = line_width
         self.dot_size = dot_size
         self.dist_scale = dist_scale
+        if not texth:
+            texth = h
 
         self.padding = w / 10
 
@@ -145,14 +147,14 @@ class GaugeElevationMap:
 
         if with_grade:
             self.grade_text = Text(self.x + self.padding / 3, self.y + self.h - self.padding / 3,
-                                   size = self.h * 0.2,
-                                   dropshadow = self.h * 0.03 if globals['style']['text_shadows'] else 0,
+                                   size = texth * 0.2,
+                                   dropshadow = texth * 0.03 if globals['style']['text_shadows'] else 0,
                                    halign = Text.HALIGN_LEFT, valign = Text.VALIGN_BOTTOM)
 
         if with_elev:
             self.elev_text = Text(self.x + self.padding / 3, self.y + self.h - self.padding / 3,
-                                  size = self.h * 0.15,
-                                  dropshadow = self.h * 0.03 if globals['style']['text_shadows'] else 0,
+                                  size = texth * 0.15,
+                                  dropshadow = texth * 0.03 if globals['style']['text_shadows'] else 0,
                                   halign = Text.HALIGN_CENTER, valign = Text.VALIGN_TOP,
                                   color = (0.8, 0.8, 0.8))
 
