@@ -60,7 +60,9 @@ class ParsedFitData:
     """
 
     # Bump this every time you change anything in ParsedFitData.
-    VERSION = 1
+    VERSION = 2
+    
+    DEDUP = { 'ascent': True }
 
     def __init__(self, file_path):
         self.version = ParsedFitData.VERSION
@@ -71,14 +73,24 @@ class ParsedFitData:
 
         messages = list(fit_file.get_messages('record'))
         self.fields = {}
+        queued_fields = {}
         for message in messages:
             data = message.get_values()
             time = timestamp_to_seconds(data.pop('timestamp'))
             for key, value in data.items():
                 try:
-                    self.fields[key].append((time, value))
+                    if key not in ParsedFitData.DEDUP:
+                        self.fields[key].append((time, value))
+                    else:
+                        if self.fields[key][-1][1] == value:
+                            queued_fields[key] = (time, value)
+                        else:
+                            del queued_fields[key]
+                            self.fields[key].append((time, value))
                 except KeyError:
                     self.fields[key] = [(time, value)]
+        for key, value in queued_fields.items():
+            self.fields[key].append(value)
 
     def save_cache(self, cache_path):
         with open(cache_path, "wb") as f:
@@ -182,6 +194,9 @@ class FitDataSource:
 
     def altitude(self, t):
         return self._interpolators['altitude'](t + self.config['altitude']['lag'])
+
+    def ascent(self, t):
+        return self._interpolators['ascent'](t + self.config['altitude']['lag'])
 
     def cadence(self, t):
         return self._interpolators['cadence'](t, flatten_time = self.config['gap_flatten_time'])

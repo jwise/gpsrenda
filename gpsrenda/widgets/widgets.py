@@ -1,7 +1,7 @@
 import math
 
 from gpsrenda.widgets import *
-from gpsrenda.utils import timestamp_to_seconds, seconds_to_timestamp, km_to_mi, c_to_f
+from gpsrenda.utils import timestamp_to_seconds, seconds_to_timestamp, km_to_mi, c_to_f, m_to_ft
 from gpsrenda.widgets.utils import latlondist
 from ..globals import globals
 
@@ -88,6 +88,37 @@ class TemperatureWidget:
         value = self.data_source.temperature(t)
         if self.units == 'imperial':
             value = c_to_f(value)
+        self.gauge.render(context, value)
+
+
+class AscentWidget:
+    def __init__(self, data_source, x, y, w, style='hbar', units=None, data_range = [0, 1]):
+        self.data_source = data_source
+        self.units = globals['units'] if units is None else units
+        gauge_class = STYLE_TABLE[style]
+        suffix = 'ft' if self.units == 'imperial' else 'm'
+
+        total_ascent = data_source.fields['ascent'][-1][1]
+
+        if self.units == 'imperial':
+            total_ascent = m_to_ft(total_ascent)
+
+        if isinstance(data_range, dict):
+            data_range = { v * total_ascent: rgb for v, rgb in data_range.items() }
+        elif isinstance(data_range, list):
+            data_range = [ v * total_ascent for v in data_range ]
+        else:
+          raise ValueError("`data_range` must be a dictionary or list")
+
+        gauge = gauge_class(x, y, w=w, label="{val:.0f}", dummy_label=f"{total_ascent:.0f}",
+                            caption=f" / {total_ascent:.0f} {suffix}", dummy_caption=None,
+                            data_range=data_range)
+        self.gauge = gauge
+
+    def render(self, context, t):
+        value = self.data_source.ascent(t)
+        if self.units == 'imperial':
+            value = m_to_ft(value)
         self.gauge.render(context, value)
 
 
