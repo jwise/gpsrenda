@@ -246,6 +246,18 @@ class TimeWidget:
         ts = seconds_to_timestamp(t).astimezone(self.tz)
         self.gauge.render(context, f"{ts.hour:02}:{ts.minute:02}")
 
+
+class LapWidget:
+    def __init__(self, data_source, x, y, w, style='text'):
+        self.data_source = data_source
+        gauge_class = STYLE_TABLE[style]
+        self.gauge = gauge_class(x, y, w=w, dummy_label = '00', caption = "lap ", caption_left_of_data = True, align_right = True)
+
+    def render(self, context, t):
+        l = self.data_source.lap(t)
+        self.gauge.render(context, f"{l}")
+
+
 class TextWidget:
     def __init__(self, data_source, x, y, w = None, style='text', text='lol?'):
         import tzlocal

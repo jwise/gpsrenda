@@ -79,7 +79,7 @@ class Text:
         ctx.show_text(text)
 
 class GaugeText:
-    def __init__(self, x, y, w = None, h = 60, dummy_label = "00:00", caption = "", dummy_caption = None, italic = True, align_right = False):
+    def __init__(self, x, y, w = None, h = 60, dummy_label = "00:00", caption = "", dummy_caption = None, italic = True, align_right = False, caption_left_of_data = False):
         self.x = x
         self.y = y
         self.w = w
@@ -105,11 +105,19 @@ class GaugeText:
                                halign = Text.HALIGN_RIGHT, valign = Text.VALIGN_BOTTOM_DESCENDERS if caption == "" else Text.VALIGN_BASELINE)
         
         if not align_right:
-            self.label_text.x = self.x + self.padding + self.label_text.measure(self.dummy_label).width + self.label_text.dropshadow
-            self.caption_text.x = self.label_text.x + self.padding / 2
+            if caption_left_of_data:
+                self.caption_text.x = self.x + self.padding 
+                self.label_text.x = self.caption_text.x + self.caption_text.measure(dummy_caption).width + self.caption_text.dropshadow + self.padding / 2 + self.label_text.measure(self.dummy_label).width
+            else:
+                self.label_text.x = self.x + self.padding + self.label_text.measure(self.dummy_label).width + self.label_text.dropshadow
+                self.caption_text.x = self.label_text.x + self.padding / 2
         else:
-            self.caption_text.x = self.x + self.w - self.padding - self.caption_text.measure(dummy_caption).width - self.caption_text.dropshadow
-            self.label_text.x = self.caption_text.x - self.padding / 2
+            if caption_left_of_data:
+                self.label_text.x = self.x + self.w - self.padding - self.label_text.dropshadow
+                self.caption_text.x = self.label_text.x - self.label_text.measure(self.dummy_label).width - self.label_text.dropshadow - self.padding / 2 - self.caption_text.measure(dummy_caption).width - self.caption_text.dropshadow
+            else:
+                self.caption_text.x = self.x + self.w - self.padding - self.caption_text.measure(dummy_caption).width - self.caption_text.dropshadow
+                self.label_text.x = self.caption_text.x - self.padding / 2
         
         if self.w is None:
             self.w = self.label_text.measure(self.dummy_label).width + self.padding * 2 + self.label_text.dropshadow

@@ -91,6 +91,16 @@ class ParsedFitData:
                     self.fields[key] = [(time, value)]
         for key, value in queued_fields.items():
             self.fields[key].append(value)
+        self.fields['lap'] = []
+        lapn = 1
+        end_lap = None
+        for message in list(fit_file.get_messages('lap')):
+            data = message.get_values()
+            self.fields['lap'].append((timestamp_to_seconds(data.pop('start_time')), lapn))
+            lapn += 1
+            end_lap = (timestamp_to_seconds(data.pop('timestamp')), lapn)
+        if end_lap:
+            self.fields['lap'].append(end_lap)
 
     def save_cache(self, cache_path):
         with open(cache_path, "wb") as f:
@@ -218,6 +228,9 @@ class FitDataSource:
 
     def heart_rate(self, t):
         return self._interpolators['heart_rate'](t)
+
+    def lap(self, t):
+        return math.floor(self._interpolators['lap'](t)) # Well, ...
 
     def lat(self, t):
         return self._interpolators['position_lat'](t + self.config['position']['lag'])
