@@ -234,13 +234,17 @@ class ElevationWidget:
 
 
 class TimeWidget:
-    def __init__(self, data_source, x, y, w, style='text'):
+    def __init__(self, data_source, x, y, w, style='text', tz=None):
         import tzlocal
+        import zoneinfo
 
         self.data_source = data_source
         gauge_class = STYLE_TABLE[style]
         self.gauge = gauge_class(x, y, w=w, dummy_label = '00:00')
-        self.tz = tzlocal.get_localzone()
+        if tz == None:
+            self.tz = tzlocal.get_localzone()
+        else:
+            self.tz = zoneinfo.ZoneInfo(tz)
 
     def render(self, context, t):
         ts = seconds_to_timestamp(t).astimezone(self.tz)
