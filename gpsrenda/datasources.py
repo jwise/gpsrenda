@@ -230,7 +230,11 @@ class FitDataSource:
         return self._interpolators['heart_rate'](t)
 
     def lap(self, t):
-        return math.floor(self._interpolators['lap'](t)) # Well, ...
+        l = self._interpolators['lap'](t)
+        if math.isnan(l):
+            return 0
+        else:
+            return math.floor(l)
 
     def lat(self, t):
         return self._interpolators['position_lat'](t + self.config['position']['lag'])
