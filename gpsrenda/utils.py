@@ -28,6 +28,21 @@ def extract_start_time(video_path):
     logger.debug(f"video starts at {seconds_to_timestamp(timestamp_to_seconds(utc_creation_time))} (ts = {timestamp_to_seconds(utc_creation_time):.0f})")
     return utc_creation_time
 
+def extract_duration(video_path):
+    from datetime import datetime
+    import pytz
+    from tzlocal import get_localzone
+
+    cmd = ["ffprobe",
+           "-v", "quiet",
+           "-print_format", "compact",
+           "-show_entries", "format=duration",
+           video_path]
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
+    out = process.stdout.read().decode('UTF-8', 'ignore')
+    duration_str = out.split("=")[1].split("Z")[0]
+    return float(duration_str)
+
 def is_flipped(video_path):
     cmd = ["ffprobe",
            "-v", "quiet",
