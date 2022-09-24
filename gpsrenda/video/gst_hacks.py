@@ -5,6 +5,8 @@
 from ctypes import *
 from contextlib import contextmanager
 
+import platform
+
 import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import Gst, GObject
@@ -25,7 +27,11 @@ class _GstMapInfo(Structure):
 
 _GST_MAP_INFO_POINTER = POINTER(_GstMapInfo)
 
-_libgst = CDLL("libgstreamer-1.0.so.0")
+if platform.system() == 'Windows':
+    _libgst = CDLL("libgstreamer-1.0-0.dll")
+else:
+    _libgst = CDLL("libgstreamer-1.0.so.0")
+
 
 # Specifying valid ctypes for C function's arguments
 _libgst.gst_buffer_map.argtypes = [c_void_p, _GST_MAP_INFO_POINTER, c_int]
