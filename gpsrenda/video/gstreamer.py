@@ -366,6 +366,16 @@ class RenderEngineGstreamer:
             logger.debug(f"using VAAPI hardware accelerated colorspace conversion")
             videoconvert_out = mkelt("vaapipostproc")
             gpsoverlay.link(videoconvert_out)
+        elif Gst.ElementFactory.find("d3d11convert"):
+            # glupload is faster on Windows, but d3d11upload actually gets
+            # the buffers right...  sigh
+            logger.debug(f"using Direct3D hardware accelerated colorspace conversion")
+            videoconvert_upload = mkelt("d3d11upload")
+            gpsoverlay.link(videoconvert_upload)
+            videoconvert = mkelt("d3d11convert")
+            videoconvert_upload.link(videoconvert)
+            videoconvert_out = mkelt("d3d11download")
+            videoconvert.link(videoconvert_out)
         elif Gst.ElementFactory.find("glcolorconvert"):
             logger.debug(f"using OpenGL hardware accelerated colorspace conversion")
             videoconvert_upload = mkelt("glupload")
