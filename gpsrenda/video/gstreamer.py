@@ -58,8 +58,17 @@ class VideoSourceGoPro:
 
         self.decoder = globals['video']['gstreamer']['decoder']
         if self.decoder is None:
-            if (     self.h265  and Gst.ElementFactory.find("vaapih265dec")) or \
-               ((not self.h265) and Gst.ElementFactory.find("vaapih264dec")):
+            # D3D11 is actually slower by default, so we do not use it!
+            # if (     self.h265  and Gst.ElementFactory.find("d3d11h265dec")) or \
+            #    ((not self.h265) and Gst.ElementFactory.find("d3d11h264dec")):
+            #     logger.debug(f"found d3d11 decoder plugin; using D3D decoder")
+            #     self.decoder = 'd3d11'
+            if (     self.h265  and Gst.ElementFactory.find("nvh265sldec")) or \
+               ((not self.h265) and Gst.ElementFactory.find("nvh264sldec")):
+                logger.debug(f"found nvidia decoder plugin; using NVDEC decoder")
+                self.decoder = 'nvdec'
+            elif (     self.h265  and Gst.ElementFactory.find("vaapih265dec")) or \
+                 ((not self.h265) and Gst.ElementFactory.find("vaapih264dec")):
                 logger.debug(f"found vaapi decoder plugin; using VAAPI decoder")
                 self.decoder = 'vaapi'
             else:
@@ -108,7 +117,78 @@ class VideoSourceGoPro:
         aout = queuea0
 
         # video pipeline
-        if self.decoder == 'vaapi':
+        if self.decoder == 'nvdec':
+            avdec = mkelt("nvh265sldec" if self.h265 else "nvh264sldec")
+            multiqueue.get_static_pad(f"src_{multiqueue_vpad.get_name().split('_')[1]}").link(avdec.get_static_pad("sink"))
+            
+            # NVDEC can only do hardware accelerated CSC / scale / flip --
+            # brightness / contrast need to happen in software for now.
+            csc = mkelt("glcolorconvert")
+            avdec.link(csc)
+
+            scaleout = mkelt("glcolorscale")
+            csc.link(scaleout)
+            
+            if self.scale:
+                capsfilter = mkelt("capsfilter")
+                capsfilter.set_property('caps', Gst.Caps.from_string(f"video/x-raw(memory:GLMemory),width={self.scale[0]},height={self.scale[1]}"))
+                scaleout.link(capsfilter)
+                scaleout = capsfilter
+
+            if self.flip:
+                videoflip = mkelt("glvideoflip")
+                videoflip.set_property("method", "rotate-180")
+                scaleout.link(videoflip)
+                scaleout = videoflip
+            
+            csc1 = mkelt("glcolorconvert")
+            scaleout.link(csc1)
+            
+            vout = mkelt("gldownload")
+            csc1.link(vout)
+            
+            if 'brightness' in self.tweaks or 'contrast' in self.tweaks:
+                videobalance = mkelt("videobalance")
+                if 'brightness' in self.tweaks:
+                    videobalance.set_property('brightness', self.tweaks['brightness'])
+                if 'contrast' in self.tweaks:
+                    videobalance.set_property('contrast', self.tweaks['contrast'])
+                vout.link(videobalance)
+                vout = videobalance
+            
+        elif self.decoder == 'd3d11':
+            avdec = mkelt("d3d11h265dec" if self.h265 else "d3d11h264dec")
+            multiqueue.get_static_pad(f"src_{multiqueue_vpad.get_name().split('_')[1]}").link(avdec.get_static_pad("sink"))
+            
+            # D3D can only do hardware accelerated CSC / scale -- flip /
+            # brightness / contrast need to happen in software.
+            scaleout = mkelt("d3d11convert")
+            avdec.link(scaleout)
+            
+            if self.scale:
+                capsfilter = mkelt("capsfilter")
+                capsfilter.set_property('caps', Gst.Caps.from_string(f"video/x-raw(memory:D3D11Memory),width={self.scale[0]},height={self.scale[1]}"))
+                scaleout.link(capsfilter)
+                scaleout = capsfilter
+            
+            vout = mkelt("d3d11download")
+            scaleout.link(vout)
+            
+            if self.flip:
+                videoflip = mkelt("videoflip")
+                videoflip.set_property("method", "rotate-180")
+                vout.link(videoflip)
+                vout = videoflip
+            if 'brightness' in self.tweaks or 'contrast' in self.tweaks:
+                videobalance = mkelt("videobalance")
+                if 'brightness' in self.tweaks:
+                    videobalance.set_property('brightness', self.tweaks['brightness'])
+                if 'contrast' in self.tweaks:
+                    videobalance.set_property('contrast', self.tweaks['contrast'])
+                vout.link(videobalance)
+                vout = videobalance
+            
+        elif self.decoder == 'vaapi':
             avdec = mkelt("vaapih265dec" if self.h265 else "vaapih264dec")
             multiqueue.get_static_pad(f"src_{multiqueue_vpad.get_name().split('_')[1]}").link(avdec.get_static_pad("sink"))
             
@@ -271,11 +351,20 @@ class RenderEngineGstreamer:
 
         if Gst.ElementFactory.find("vaapipostproc") and globals['video']['gstreamer']['x264_profile'] == 'high':
             # vaapipostproc doesn't seem to be able to output yuv444 / yuv422p?
-            logger.debug(f"using hardware accelerated colorspace conversion")
+            logger.debug(f"using VAAPI hardware accelerated colorspace conversion")
             videoconvert_out = mkelt("vaapipostproc")
+            gpsoverlay.link(videoconvert_out)
+        elif Gst.ElementFactory.find("glcolorconvert"):
+            logger.debug(f"using OpenGL hardware accelerated colorspace conversion")
+            videoconvert_upload = mkelt("glupload")
+            gpsoverlay.link(videoconvert_upload)
+            videoconvert = mkelt("glcolorconvert")
+            videoconvert_upload.link(videoconvert)
+            videoconvert_out = mkelt("gldownload")
+            videoconvert.link(videoconvert_out)
         else:
             videoconvert_out = mkelt("videoconvert")
-        gpsoverlay.link(videoconvert_out)
+            gpsoverlay.link(videoconvert_out)
 
         encoder = globals['video']['gstreamer']['encoder']
         if encoder is None:
