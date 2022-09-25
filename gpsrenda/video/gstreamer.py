@@ -458,15 +458,16 @@ class RenderEngineGstreamer:
                             do_seek(-5)
                         elif key == 'Right':
                             do_seek(5)
-                        elif key == 'minus':
+                        elif key == 'minus' or key == '-':
                             self.adjust_time_offset(-0.2)
-                        elif key == 'equal':
+                        elif key == 'equal' or key == '=':
                             self.adjust_time_offset(0.2)
-                        elif key == 'bracketleft':
+                        elif key == 'bracketleft' or key == '[':
                             self.adjust_time_offset(-2)
-                        elif key == 'bracketright':
+                        elif key == 'bracketright' or key == ']':
                             self.adjust_time_offset(2)
-                        elif key == 'q':
+                        elif key == 'q' or key == 'Q':
+                            pipeline.set_state(Gst.State.NULL)
                             loop.quit()
                         else:
                             print(f"unknown keypress: {key}")
@@ -485,7 +486,7 @@ class RenderEngineGstreamer:
             nonlocal starttime
             if starttime == 0 and gpsoverlay.frames_processed > 0:
                 starttime = time.time()
-            print(f"{pos / Gst.SECOND:.1f} / {dur / Gst.SECOND:.1f} ({gpsoverlay.frames_processed / (time.time() - starttime):.1f} fps)        ", end='\r')
+            print(f"{pos / Gst.SECOND:.1f} / {dur / Gst.SECOND:.1f} ({gpsoverlay.frames_processed / (time.time() - starttime + 0.01):.1f} fps)        ", end='\r')
             return True
         GLib.timeout_add(100, on_timer)
 
@@ -498,6 +499,7 @@ class RenderEngineGstreamer:
         try:
             loop.run()
         finally:
+            pipeline.set_state(Gst.State.NULL)
             loop.quit()
             alldone = True
         print("")
