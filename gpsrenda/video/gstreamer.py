@@ -349,6 +349,18 @@ class RenderEngineGstreamer:
         pipeline.add(gpsoverlay)
         vout.link(gpsoverlay)
 
+        encoder = globals['video']['gstreamer']['encoder']
+        if encoder is None:
+            if Gst.ElementFactory.find("nvh264enc"):
+                logger.debug(f"found nvenc encoder plugin; using NVENC encoder")
+                encoder = 'nvenc'
+            elif Gst.ElementFactory.find("vaapih264enc"):
+                logger.debug(f"found vaapi encoder plugin; using VAAPI encoder")
+                encoder = 'vaapi'
+            else:
+                logger.debug(f"no hardware accelerated encoder found; using x264")
+                encoder = 'x264'
+
         if Gst.ElementFactory.find("vaapipostproc") and globals['video']['gstreamer']['x264_profile'] == 'high':
             # vaapipostproc doesn't seem to be able to output yuv444 / yuv422p?
             logger.debug(f"using VAAPI hardware accelerated colorspace conversion")
@@ -360,22 +372,29 @@ class RenderEngineGstreamer:
             gpsoverlay.link(videoconvert_upload)
             videoconvert = mkelt("glcolorconvert")
             videoconvert_upload.link(videoconvert)
-            videoconvert_out = mkelt("gldownload")
-            videoconvert.link(videoconvert_out)
+            if encoder == 'nvenc':
+                videoconvert_out = videoconvert
+            else:
+                videoconvert_out = mkelt("gldownload")
+                videoconvert.link(videoconvert_out)
         else:
             videoconvert_out = mkelt("videoconvert")
             gpsoverlay.link(videoconvert_out)
 
-        encoder = globals['video']['gstreamer']['encoder']
-        if encoder is None:
-            if Gst.ElementFactory.find("vaapih264enc"):
-                logger.debug(f"found vaapi encoder plugin; using VAAPI encoder")
-                encoder = 'vaapi'
-            else:
-                logger.debug(f"no hardware accelerated encoder found; using x264")
-                encoder = 'x264'
+        if encoder == "nvenc":
+            videoenc = mkelt("nvh264enc")
+            videoenc.set_property("bitrate",  globals['video']['gstreamer']['bitrate'])
+            videoconvert_out.link(videoenc)
 
-        if encoder == "vaapi":
+            capsfilter = mkelt("capsfilter")
+            capsfilter.set_property('caps', Gst.Caps.from_string(f"video/x-h264,profile={globals['video']['gstreamer']['x264_profile']}")) # DaVinci can only do yuv4:2:0.
+            videoenc.link(capsfilter)
+            videoenc = capsfilter
+
+            parse = mkelt("h264parse")
+            videoenc.link(parse)
+            videoenc = parse
+        elif encoder == "vaapi":
             videoenc0 = mkelt("vaapih264enc")
             videoenc0.set_property("rate-control", 4) # VBR
             videoenc0.set_property("bitrate", globals['video']['gstreamer']['bitrate'])
