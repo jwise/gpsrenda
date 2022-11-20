@@ -14,7 +14,7 @@ gi.require_version('GstVideo', '1.0')
 from gi.repository import Gst, GstApp, GstBase, GstVideo, GLib, GObject
 
 from gpsrenda.globals import globals
-from gpsrenda.utils import extract_start_time, timestamp_to_seconds, is_flipped, merge_dict
+from gpsrenda.utils import extract_start_time, timestamp_to_seconds, seconds_to_timestamp, is_flipped, merge_dict
 
 from .engines import register_engine
 
@@ -35,6 +35,7 @@ class VideoSourceGoPro:
         self.h265 = globals['video']['gstreamer']['h265'] # needed until we can pull this out of the file with libav
         self.pcm = globals['video']['gstreamer']['pcm_audio']
         self.framerate = globals['video']['gstreamer']['framerate'] # needed until we can pull this out of the file with libav
+        self.start_time_from_chinese_dashcam_filename = False
         if tweaks['scale'] is None:
             self.scale = None
         else:
@@ -55,6 +56,10 @@ class VideoSourceGoPro:
             logger.debug(f"{filename} is a Cycliq file, turning on PCM audio override")
             self.pcm = True
             self.h265 = False
+        if re.match(r'.*\d{4}_\d{4}_\d{6}.MP4', self.filename):
+            logger.debug(f"{filename} appears to be one of those weird Chinese dashcam files")
+            self.h265 = False
+            self.start_time_from_chinese_dashcam_filename = True
 
         self.decoder = globals['video']['gstreamer']['decoder']
         if self.decoder is None:
@@ -274,7 +279,24 @@ class VideoSourceGoPro:
         return audioresample
 
     def start_time(self):
-        return timestamp_to_seconds(extract_start_time(self.filename))
+        if self.start_time_from_chinese_dashcam_filename:
+            from datetime import datetime
+            import pytz
+            from tzlocal import get_localzone
+            
+            ymdhms = re.match(r'.*(\d{4}_\d{2}\d{2}_\d{2}\d{2}\d{2}).MP4', self.filename)
+            creation_time = datetime.strptime(ymdhms[1], "%Y_%m%d_%H%M%S")
+            local_tz = get_localzone()
+            try:
+                localized_creation_time = local_tz.localize(creation_time)
+            except:
+                localized_creation_time = creation_time.replace(tzinfo = local_tz)
+            utc_creation_ts = timestamp_to_seconds(localized_creation_time.astimezone(pytz.utc).replace(tzinfo=None))
+            # Declare this to be in local time, then convert to UTC
+            logger.debug(f"video starts at {seconds_to_timestamp(utc_creation_ts)} (ts = {utc_creation_ts:.0f})")
+            return utc_creation_ts
+        else:
+            return timestamp_to_seconds(extract_start_time(self.filename))
 
 TRANSFORM_VERBOSE = False
 
@@ -299,6 +321,7 @@ class GstOverlayGPS(GstBase.BaseTransform):
         self.video_start_time = start_time
         self.last_tm = time.time()
         self.frames_processed = 0
+        self.last_pos = 0
 
     def do_transform_ip(self, buffer):
         tst = time.time()
@@ -312,6 +335,7 @@ class GstOverlayGPS(GstBase.BaseTransform):
             self.painter(ctx, self.video_start_time + self.segment.position / 1000000000)
 
         self.frames_processed += 1
+        self.last_pos = self.segment.position / 1000000000
         if TRANSFORM_VERBOSE:
             print(f"transform took {(time.time() - tst) * 1000:.1f}ms, {1 / (time.time() - self.last_tm):.1f} fps")
         self.last_tm = time.time()
@@ -562,7 +586,7 @@ class RenderEngineGstreamer:
                 print("EOS")
                 loop.quit()
             elif mtype == Gst.MessageType.ERROR:
-                print("Error!")
+                print(f"\nError! {message.src.name}: {message.get_structure().to_string()}")
             elif mtype == Gst.MessageType.WARNING:
                 print("Warning!")
             elif mtype == Gst.MessageType.ELEMENT:
@@ -604,7 +628,7 @@ class RenderEngineGstreamer:
             nonlocal starttime
             if starttime == 0 and gpsoverlay.frames_processed > 0:
                 starttime = time.time()
-            print(f"{pos / Gst.SECOND:.1f} / {dur / Gst.SECOND:.1f} ({gpsoverlay.frames_processed / (time.time() - starttime + 0.01):.1f} fps)        ", end='\r')
+            print(f"{pos / Gst.SECOND:.1f} (last Gst TS {gpsoverlay.last_pos:.1f}) / {dur / Gst.SECOND:.1f} ({gpsoverlay.frames_processed / (time.time() - starttime + 0.01):.1f} fps)        ", end='\r')
             return True
         GLib.timeout_add(100, on_timer)
 
