@@ -85,11 +85,14 @@ def merge_dict(dct, merge_dct):
 
     Returns dct after the merge.
     """
-    import collections
+    try:
+        from collections.abc import Mapping
+    except ImportError:
+        from collections import Mapping
 
     for k, v in merge_dct.items():
         if (k in dct and isinstance(dct[k], dict)
-                and isinstance(merge_dct[k], collections.Mapping)):
+                and isinstance(merge_dct[k], Mapping)):
             merge_dict(dct[k], merge_dct[k])
         else:
             dct[k] = merge_dct[k]
