@@ -573,7 +573,7 @@ class RenderEngineGstreamer:
                 now = last_seek
             now += ofs * Gst.SECOND
             last_seek = now
-            pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, now)
+            pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH, now)
             print(f"\nseeked to t={now / Gst.SECOND}")
 
         def on_message(bus, message):
@@ -587,7 +587,7 @@ class RenderEngineGstreamer:
 
                     nonlocal did_seek, seek
                     if not did_seek and seek > 0:
-                        pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, seek * Gst.SECOND) 
+                        pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH, seek * Gst.SECOND) 
                         did_seek = True
             elif mtype == Gst.MessageType.EOS:
                 print("EOS")
