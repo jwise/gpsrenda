@@ -183,7 +183,7 @@ class FitDataSource:
             if len(values) > 0 and values[0][0] < mintime:
                 mintime = values[0][0]
 
-            val_array = np.array(values, dtype=np.float)
+            val_array = np.array(values, dtype=float)
             # It is possible for the fit file to contain a few or all NaNs due to missing / corrupted data
             # Drop nans before interpolation
             nans = np.isnan(val_array[:,1])
