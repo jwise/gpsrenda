@@ -76,6 +76,9 @@ class VideoSourceGoPro:
                  ((not self.h265) and Gst.ElementFactory.find("vaapih264dec")):
                 logger.debug(f"found vaapi decoder plugin; using VAAPI decoder")
                 self.decoder = 'vaapi'
+            elif Gst.ElementFactory.find("vtdec"):
+                logger.debug(f"using Apple native decoder")
+                self.decoder = 'vtdec'
             else:
                 logger.debug(f"no hardware accelerated decoder found; using software decoder")
                 self.decoder = 'software'
@@ -210,10 +213,14 @@ class VideoSourceGoPro:
                 vout.set_property('contrast', self.tweaks['contrast'])
             avdec.link(vout)
 
-        elif self.decoder == 'software':
-            avdec = mkelt("avdec_h265" if self.h265 else "avdec_h264")
-            multiqueue.get_static_pad(f"src_{multiqueue_vpad.get_name().split('_')[1]}").link(avdec.get_static_pad("sink"))
-            avdec.set_property("max-threads", 6)
+        elif self.decoder == 'software' or self.decoder == 'vtdec':
+            if self.decoder == 'software':
+                avdec = mkelt("avdec_h265" if self.h265 else "avdec_h264")
+                multiqueue.get_static_pad(f"src_{multiqueue_vpad.get_name().split('_')[1]}").link(avdec.get_static_pad("sink"))
+                avdec.set_property("max-threads", 6)
+            else:
+                avdec = mkelt("vtdec")
+                multiqueue.get_static_pad(f"src_{multiqueue_vpad.get_name().split('_')[1]}").link(avdec.get_static_pad("sink"))
             
             # Does nothing if there's nothing to do, so no performance impact in that case.
             scaleout = mkelt("videoscale")

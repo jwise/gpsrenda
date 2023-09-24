@@ -29,6 +29,8 @@ _GST_MAP_INFO_POINTER = POINTER(_GstMapInfo)
 
 if platform.system() == 'Windows':
     _libgst = CDLL("libgstreamer-1.0-0.dll")
+elif platform.system() == 'Darwin':
+    _libgst = CDLL("libgstreamer-1.0.dylib")
 else:
     _libgst = CDLL("libgstreamer-1.0.so.0")
 
