@@ -21,6 +21,7 @@ from .engines import register_engine
 from .gst_hacks import map_gst_buffer
 
 Gst.init(sys.argv)
+#Gst.init_python()
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +77,7 @@ class VideoSourceGoPro:
                  ((not self.h265) and Gst.ElementFactory.find("vaapih264dec")):
                 logger.debug(f"found vaapi decoder plugin; using VAAPI decoder")
                 self.decoder = 'vaapi'
-            elif Gst.ElementFactory.find("vtdec"):
+            elif Gst.ElementFactory.find("vtdec_hw"):
                 logger.debug(f"using Apple native decoder")
                 self.decoder = 'vtdec'
             else:
@@ -219,7 +220,7 @@ class VideoSourceGoPro:
                 multiqueue.get_static_pad(f"src_{multiqueue_vpad.get_name().split('_')[1]}").link(avdec.get_static_pad("sink"))
                 avdec.set_property("max-threads", 6)
             else:
-                avdec = mkelt("vtdec")
+                avdec = mkelt("vtdec_hw")
                 multiqueue.get_static_pad(f"src_{multiqueue_vpad.get_name().split('_')[1]}").link(avdec.get_static_pad("sink"))
             
             # Does nothing if there's nothing to do, so no performance impact in that case.
@@ -316,18 +317,20 @@ class GstOverlayGPS(GstBase.BaseTransform):
     __gsttemplates__ = (Gst.PadTemplate.new("src",
                                             Gst.PadDirection.SRC,
                                             Gst.PadPresence.ALWAYS,
-                                            Gst.Caps.from_string("video/x-raw,format=BGRA")),
+                                            Gst.Caps.from_string("video/x-raw,format=BGRA,width=[1,2147483647],height=[1,2147483647]")),
                         Gst.PadTemplate.new("sink",
                                             Gst.PadDirection.SINK,
                                             Gst.PadPresence.ALWAYS,
-                                            Gst.Caps.from_string("video/x-raw,format=BGRA")))
+                                            Gst.Caps.from_string("video/x-raw,format=BGRA,width=[1,2147483647],height=[1,2147483647]")))
 
-    def __init__(self, painter, start_time):
+    def __init__(self, painter, video_start_time):
+        print(self.__gsttemplates__)
         super(GstOverlayGPS, self).__init__()
         self.painter = painter
-        self.video_start_time = start_time
+        self.video_start_time = video_start_time
         self.last_tm = time.time()
         self.frames_processed = 0
+        self.time_in_cairo = 0
         self.last_pos = 0
 
     def do_transform_ip(self, buffer):
@@ -343,8 +346,9 @@ class GstOverlayGPS(GstBase.BaseTransform):
 
         self.frames_processed += 1
         self.last_pos = self.segment.position / 1000000000
-        if TRANSFORM_VERBOSE:
+        if TRANSFORM_VERBOSE or (self.frames_processed % 100) == 0:
             print(f"transform took {(time.time() - tst) * 1000:.1f}ms, {1 / (time.time() - self.last_tm):.1f} fps")
+        self.time_in_cairo += time.time() - tst
         self.last_tm = time.time()
 
         return Gst.FlowReturn.OK
@@ -354,6 +358,7 @@ class RenderEngineGstreamer:
         self.renderfn = renderfn
         self.adjust_time_offset = adjust_time_offset
         self.tweaks = {}
+
 
     def set_tweaks(self, tweaks):
         self.tweaks = tweaks
@@ -378,7 +383,7 @@ class RenderEngineGstreamer:
 
         gpsoverlay = GstOverlayGPS(self.renderfn, input.start_time())
         pipeline.add(gpsoverlay)
-        vout.link(gpsoverlay)
+        assert(vout.link(gpsoverlay))
 
         encoder = globals['video']['gstreamer']['encoder']
         if encoder is None:
@@ -396,70 +401,83 @@ class RenderEngineGstreamer:
             # vaapipostproc doesn't seem to be able to output yuv444 / yuv422p?
             logger.debug(f"using VAAPI hardware accelerated colorspace conversion")
             videoconvert_out = mkelt("vaapipostproc")
-            gpsoverlay.link(videoconvert_out)
+            assert(gpsoverlay.link(videoconvert_out))
         elif Gst.ElementFactory.find("d3d11convert"):
             # glupload is faster on Windows, but d3d11upload actually gets
             # the buffers right...  sigh
             logger.debug(f"using Direct3D hardware accelerated colorspace conversion")
             videoconvert_upload = mkelt("d3d11upload")
-            gpsoverlay.link(videoconvert_upload)
+            assert(gpsoverlay.link(videoconvert_upload))
             videoconvert = mkelt("d3d11convert")
-            videoconvert_upload.link(videoconvert)
+            assert(videoconvert_upload.link(videoconvert))
             videoconvert_out = mkelt("d3d11download")
-            videoconvert.link(videoconvert_out)
+            assert(videoconvert.link(videoconvert_out))
         elif Gst.ElementFactory.find("glcolorconvert"):
             logger.debug(f"using OpenGL hardware accelerated colorspace conversion")
             videoconvert_upload = mkelt("glupload")
-            gpsoverlay.link(videoconvert_upload)
+            assert(gpsoverlay.link(videoconvert_upload))
             videoconvert = mkelt("glcolorconvert")
-            videoconvert_upload.link(videoconvert)
+            assert(videoconvert_upload.link(videoconvert))
             if encoder == 'nvenc':
                 videoconvert_out = videoconvert
             else:
                 videoconvert_out = mkelt("gldownload")
-                videoconvert.link(videoconvert_out)
+                assert(videoconvert.link(videoconvert_out))
         else:
             videoconvert_out = mkelt("videoconvert")
-            gpsoverlay.link(videoconvert_out)
+            assert(gpsoverlay.link(videoconvert_out))
 
         if encoder == "nvenc":
             videoenc = mkelt("nvh264enc")
             videoenc.set_property("bitrate",  globals['video']['gstreamer']['bitrate'])
-            videoconvert_out.link(videoenc)
+            assert(videoconvert_out.link(videoenc))
 
             capsfilter = mkelt("capsfilter")
             capsfilter.set_property('caps', Gst.Caps.from_string(f"video/x-h264,profile={globals['video']['gstreamer']['x264_profile']}")) # DaVinci can only do yuv4:2:0.
-            videoenc.link(capsfilter)
+            assert(videoenc.link(capsfilter))
             videoenc = capsfilter
 
             parse = mkelt("h264parse")
-            videoenc.link(parse)
+            assert(videoenc.link(parse))
             videoenc = parse
         elif encoder == "vaapi":
             videoenc0 = mkelt("vaapih264enc")
             videoenc0.set_property("rate-control", 4) # VBR
             videoenc0.set_property("bitrate", globals['video']['gstreamer']['bitrate'])
-            videoconvert_out.link(videoenc0)
+            assert(videoconvert_out.link(videoenc0))
             
             videoenc = mkelt("h264parse")
-            videoenc0.link(videoenc)
+            assert(videoenc0.link(videoenc))
         elif encoder == "x264":
             videoenc = mkelt("x264enc")
             videoenc.set_property("pass", "qual") # constant quality
             videoenc.set_property("speed-preset", globals['video']['gstreamer']['speed_preset'])
             videoenc.set_property("bitrate", globals['video']['gstreamer']['bitrate']) # should be quantizer for CRF mode in pass=qual, but it isn't?  oh, well
             videoenc.set_property("threads", globals['video']['gstreamer']['encode_threads'])
-            videoconvert_out.link(videoenc)
+            assert(videoconvert_out.link(videoenc))
 
             capsfilter = mkelt("capsfilter")
             capsfilter.set_property('caps', Gst.Caps.from_string(f"video/x-h264,profile={globals['video']['gstreamer']['x264_profile']}")) # DaVinci can only do yuv4:2:0.
-            videoenc.link(capsfilter)
+            assert(videoenc.link(capsfilter))
             videoenc = capsfilter
+        elif encoder == "vtenc":
+            videoenc = mkelt("vtenc_h264_hw")
+            videoenc.set_property("bitrate", globals['video']['gstreamer']['bitrate'])
+            assert(videoconvert_out.link(videoenc))
+
+            capsfilter = mkelt("capsfilter")
+            capsfilter.set_property('caps', Gst.Caps.from_string(f"video/x-h264,profile={globals['video']['gstreamer']['x264_profile']}")) # DaVinci can only do yuv4:2:0.
+            assert(videoenc.link(capsfilter))
+            videoenc = capsfilter
+
+            parse = mkelt("h264parse")
+            assert(videoenc.link(parse))
+            videoenc = parse
         else:
             raise RuntimeError(f"unknown encode method {encoder}")
 
         videoq = mkelt("queue")
-        videoenc.link(videoq)
+        assert(videoenc.link(videoq))
 
         mp4mux = mkelt("mp4mux")
         videoq.link(mp4mux)
@@ -504,7 +522,7 @@ class RenderEngineGstreamer:
             now = datetime.timedelta(seconds = now)
             pos = datetime.timedelta(microseconds = pos / 1000)
             dur = datetime.timedelta(microseconds = dur / 1000)
-            print(f"{pos / dur * 100:.1f}% ({pos/now:.2f}x realtime; {pos} / {dur}; {gpsoverlay.frames_processed} frames)", end='\r')
+            print(f"{pos / dur * 100:.1f}% ({pos/now:.2f}x realtime; {pos} / {dur}; {gpsoverlay.frames_processed} frames, {gpsoverlay.time_in_cairo / (gpsoverlay.frames_processed + 0.01) * 1000:.1f} ms avg in Cairo / frame)", end='\r')
             return True
         GLib.timeout_add(200, on_timer)
 
@@ -517,8 +535,13 @@ class RenderEngineGstreamer:
 
         try:
             signal.signal(signal.SIGINT, shutdown_loop)
+        except:
+            pass
+
+        try:
             loop.run()
-        except e:
+        except Exception as e:
+            print(e)
             shutdown_loop()
             
         alldone = True
@@ -526,14 +549,15 @@ class RenderEngineGstreamer:
 
     def preview(self, src, seek = 0.0):
         """Set up a Gstreamer preview pipeline, and begin playing it."""
-
+        
         tweaks = merge_dict({}, globals['video'])
         tweaks = merge_dict(tweaks, self.tweaks)
 
         input = VideoSourceGoPro(src, tweaks = tweaks)
+        gpsoverlay = GstOverlayGPS(self.renderfn, input.start_time())
 
         pipeline = Gst.Pipeline.new("pipeline")
-
+        
         (aout, vout) = input.add_to_pipeline(pipeline)
         adec = input.decode_audio(pipeline, aout)
 
@@ -544,20 +568,19 @@ class RenderEngineGstreamer:
             return elt
 
         autoaudiosink = mkelt("autoaudiosink")
-        adec.link(autoaudiosink)
+        assert(adec.link(autoaudiosink))
 
-        gpsoverlay = GstOverlayGPS(self.renderfn, input.start_time())
         pipeline.add(gpsoverlay)
-        vout.link(gpsoverlay)
+        assert(vout.link(gpsoverlay))
 
         if Gst.ElementFactory.find("vaapipostproc"):
             videoconvert_out = mkelt("vaapipostproc")
         else:
             videoconvert_out = mkelt("videoconvert")
-        gpsoverlay.link(videoconvert_out)
+        assert(gpsoverlay.link(videoconvert_out))
 
         queuev2 = mkelt("queue")
-        videoconvert_out.link(queuev2)
+        assert(videoconvert_out.link(queuev2))
 
         autovideosink = mkelt("autovideosink")
         queuev2.link(autovideosink)
