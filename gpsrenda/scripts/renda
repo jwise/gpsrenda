@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import cairo
 import yaml
+import sys
+import time
 
 import argparse as ap
 from datetime import datetime
@@ -103,4 +105,26 @@ if __name__ == "__main__":
     video_paths = sum([glob(pattern) for pattern in args.video_pattern], [])
     time_offset = args.time_offset #timedelta(seconds=args.time_offset)
 
-    renda(video_paths, args.data_path, time_offset, args.config_path, preview = args.preview_seek if args.preview else None)
+    def doit():
+        renda(video_paths, args.data_path, time_offset, args.config_path, preview = args.preview_seek if args.preview else None)
+    
+    if sys.platform == 'darwin' and gpsrenda.video._get_default_engine().__module__ == 'gpsrenda.video.gstreamer':
+        # make sure the Python runtime is ready to be MT
+        import threading
+        def sleep_start():
+            time.sleep(3)
+        threading.Thread(target=sleep_start).start()
+        
+        from ctypes import *
+        gst = cdll.LoadLibrary('libgstreamer-1.0.dylib')
+        def gst_main(argc, argv):
+            doit()
+            return 0
+        GSTMAINTYPE = CFUNCTYPE(c_int, c_int, POINTER(c_int))
+        gst_main_ctype = GSTMAINTYPE(gst_main)
+        gst.gst_macos_main.restype = c_int
+        charp_array = c_char_p * 1
+        gst.gst_macos_main.argtypes = (GSTMAINTYPE, c_int, charp_array, c_char_p)
+        gst.gst_macos_main(gst_main_ctype, 0, charp_array(b"lol"), None)
+    else:
+        doit()

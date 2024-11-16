@@ -14,4 +14,4 @@ try:
 except:
     logger.debug("failed to load gstreamer")
 
-from .engines import engines, default_engine
+from .engines import engines, default_engine, _get_default_engine
